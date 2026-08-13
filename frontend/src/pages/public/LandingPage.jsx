@@ -77,19 +77,45 @@ export default function LandingPage() {
     <div data-testid="landing-page" className="text-[#0F3D2E]">
 
       {/* ==================================================================== */}
-      {/* HERO BANNER — big, vibrant, product picker chips (urban-money style)  */}
+      {/* HERO BANNER — CorpZo brand: deep green + gold + lime accents          */}
+      {/* Urban Money cues: dot-grid texture, hello chat bubble, coin motif     */}
+      {/* Venturaz cues:    concentric rings + brand-green gradient             */}
       {/* ==================================================================== */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#0F3D2E] via-[#12503C] to-[#1F5B4A] text-white">
-        {/* concentric-circle motif */}
+        {/* signature CorpZo motif — concentric circles from venturaz */}
         <svg className="absolute -left-60 top-0 opacity-25" width="900" height="900" viewBox="0 0 900 900" fill="none">
           {[100,180,260,340,420,500].map(r => <circle key={r} cx="450" cy="450" r={r} stroke="#FFD84D" strokeWidth="0.5" strokeDasharray="2 8"/>)}
         </svg>
+        {/* Urban-Money-style dot grid overlay */}
+        <div className="absolute inset-0 bg-dot-grid opacity-40"/>
+        {/* radial gold glow */}
         <div className="absolute inset-y-0 right-0 w-1/2 opacity-30" style={{background:"radial-gradient(ellipse at right, rgba(255,216,77,.22), transparent 60%)"}}/>
+        {/* lime energy accent */}
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-[#C6FF3B]/15 blur-3xl"/>
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#FAFAF7] to-transparent"/>
+
+        {/* Floating coin motif (Urban Money's money-shower cue) */}
+        <div className="absolute top-16 right-[40%] opacity-30 hidden lg:block" aria-hidden>
+          {[
+            {x:0,y:0,d:0},{x:60,y:40,d:1},{x:-40,y:80,d:2},{x:100,y:100,d:0.5},{x:20,y:180,d:1.5}
+          ].map((c,i) => (
+            <div key={i} className="absolute w-8 h-8 rounded-full border-2 border-[#FFD84D] flex items-center justify-center text-[#FFD84D] font-display font-bold"
+              style={{left:`${c.x}px`, top:`${c.y}px`, animation:`float 4s ease-in-out ${c.d}s infinite`}}>₹</div>
+          ))}
+        </div>
 
         <div className="relative max-w-7xl mx-auto px-6 pt-14 pb-20 grid lg:grid-cols-12 gap-10 items-center">
           {/* LEFT — copy */}
           <div className="lg:col-span-7">
+            {/* Hello chat bubble — Urban Money signature */}
+            <div className="inline-flex items-center gap-2 mb-4" data-testid="hero-hello-bubble">
+              <div className="relative bg-[#C6FF3B] text-[#0F3D2E] px-3 py-1.5 rounded-2xl rounded-bl-sm font-display font-bold text-sm shadow-lg">
+                Hello, borrower!
+                <span className="absolute -bottom-1 left-2 w-0 h-0 border-t-8 border-t-[#C6FF3B] border-l-8 border-l-transparent"/>
+              </div>
+              <div className="text-xs text-white/50">👋 We compare 40+ lenders for you</div>
+            </div>
+
             <div className="inline-flex items-center gap-2 bg-[#FFD84D]/15 text-[#FFD84D] text-[10.5px] font-semibold uppercase tracking-widest px-3 py-1.5 rounded-full border border-[#FFD84D]/30">
               <Zap size={12}/> India's verified debt marketplace
             </div>
@@ -99,7 +125,8 @@ export default function LandingPage() {
             </h1>
             <p className="text-lg text-white/80 mt-5 max-w-xl">
               Compare offers from India's top banks & NBFCs, get personalised quotes in minutes,
-              and let CorpZo's credit team drive your case end-to-end. <span className="text-[#FFD84D] font-semibold">Zero cost until sanction.</span>
+              and let CorpZo's credit team drive your case end-to-end.
+              <span className="ml-1 inline-block px-2 py-0.5 rounded bg-[#C6FF3B]/20 text-[#C6FF3B] font-semibold text-sm">Zero cost until sanction</span>
             </p>
 
             {/* Product chips — with live rate_from */}
@@ -238,27 +265,42 @@ export default function LandingPage() {
       {/* ==================================================================== */}
       {/* HOW IT WORKS — 3-step timeline                                        */}
       {/* ==================================================================== */}
-      <section className="bg-[#F1F7F3] py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-10">
-            <div className="text-xs uppercase tracking-widest text-[#16A981] font-bold">How it works</div>
-            <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0F3D2E] mt-1">From application to disbursal in 3 steps</h2>
+      {/* HOW IT WORKS — Urban-Money-style numbered process cards               */}
+      {/* ==================================================================== */}
+      <section className="relative bg-[#0F3D2E] py-20 overflow-hidden text-white">
+        <div className="absolute inset-0 bg-dot-grid opacity-40"/>
+        <div className="absolute -top-32 left-1/4 w-96 h-96 rounded-full bg-[#C6FF3B]/8 blur-3xl"/>
+        <div className="absolute -bottom-32 right-1/4 w-96 h-96 rounded-full bg-[#FFD84D]/8 blur-3xl"/>
+        <div className="relative max-w-7xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <div className="text-xs uppercase tracking-widest text-[#C6FF3B] font-bold">How it works</div>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mt-1">From application to disbursal in 3 steps</h2>
           </div>
+
+          {/* connector line for desktop */}
+          <div className="hidden md:block absolute left-[15%] right-[15%] top-[62%] h-px bg-gradient-to-r from-transparent via-[#C6FF3B]/40 to-transparent"/>
+
           <div className="grid md:grid-cols-3 gap-6 relative">
             {[
-              {step:"01", t:"Tell us your requirement", d:"Pick a product, share your amount and mobile. Takes 60 seconds.", icon:PhoneCall, color:"#16A981"},
-              {step:"02", t:"We match you to lenders", d:"Our credit team runs your case against 40+ banks & NBFCs and shortlists the sharpest quotes.", icon:TrendingUp, color:"#FFD84D"},
-              {step:"03", t:"You sanction & disburse", d:"Pick an offer, we handle docs, mandate & disbursal. Success fee only on sanction.", icon:CheckCircle2, color:"#4C9EEB"},
+              {step:"01", t:"Tell us your requirement", d:"Pick a product, share your amount and mobile. Takes 60 seconds.", icon:PhoneCall, color:"#C6FF3B"},
+              {step:"02", t:"We match you to lenders",  d:"Our credit team runs your case against 40+ banks & NBFCs and shortlists the sharpest quotes.", icon:TrendingUp, color:"#FFD84D"},
+              {step:"03", t:"You sanction & disburse",  d:"Pick an offer, we handle docs, mandate & disbursal. Success fee only on sanction.", icon:CheckCircle2, color:"#16A981"},
             ].map((s, i) => {
               const Icon = s.icon;
               return (
-                <div key={i} className="relative bg-white rounded-2xl p-7 border border-[#0F3D2E]/8 hover:border-[#16A981]/30 hover:shadow-lg transition">
-                  <div className="font-display text-[52px] leading-none font-bold" style={{color:s.color, opacity:.25}}>{s.step}</div>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center mt-2" style={{background:s.color, color: s.color === "#FFD84D" ? "#0F3D2E" : "white"}}>
-                    <Icon size={20}/>
+                <div key={i} className="relative bg-white/5 backdrop-blur rounded-2xl p-7 border border-white/10 hover:border-[color:var(--card-hover)] transition group"
+                     style={{"--card-hover": `${s.color}55`}}>
+                  {/* huge step number background */}
+                  <div className="absolute -top-4 right-4 font-display text-[80px] leading-none font-bold" style={{color:s.color, opacity:.12}}>{s.step}</div>
+                  {/* icon chip */}
+                  <div className="relative w-12 h-12 rounded-xl flex items-center justify-center shadow-lg" style={{background:s.color, color: s.color === "#C6FF3B" || s.color === "#FFD84D" ? "#0F3D2E" : "white"}}>
+                    <Icon size={22}/>
                   </div>
-                  <div className="font-display text-lg font-bold text-[#0F3D2E] mt-4">{s.t}</div>
-                  <p className="text-sm text-[#0F3D2E]/65 mt-1">{s.d}</p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <span className="text-[10.5px] uppercase tracking-widest font-bold" style={{color:s.color}}>Step {s.step}</span>
+                  </div>
+                  <div className="font-display text-lg font-bold text-white mt-1">{s.t}</div>
+                  <p className="text-sm text-white/65 mt-1.5">{s.d}</p>
                 </div>
               );
             })}

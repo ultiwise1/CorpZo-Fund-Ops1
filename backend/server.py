@@ -1887,7 +1887,8 @@ async def create_opportunity(case_uid: str, request: Request):
         "estimated_fee": body.get("estimated_fee", svc["fee"]),
         "sla_days": svc["sla_days"],
         "status": "open",
-        "assigned_to": case.get("sales_owner"),
+        # Determine advisory-desk owner: global setting overrides case sales owner
+        "assigned_to": (await db.settings.find_one({"_id": "advisory_desk"}) or {}).get("owner_employee_uid") or case.get("sales_owner"),
         "notes": body.get("notes", ""),
         "created_by": user["user_id"],
         "created_at": now.isoformat(),
@@ -1907,6 +1908,39 @@ async def create_opportunity(case_uid: str, request: Request):
                          f"{app_url}/opportunities" if app_url else None, "info",
                          email=owner_user.get("email"))
     return doc
+
+
+@api.get("/settings/advisory-desk")
+async def get_advisory_desk(request: Request):
+    await require_user(request)
+    setting = await db.settings.find_one({"_id": "advisory_desk"}) or {}
+    owner_uid = setting.get("owner_employee_uid")
+    owner = None
+    if owner_uid:
+        owner = await db.employees.find_one({"employee_uid": owner_uid}, {"_id": 0})
+    return {"owner_employee_uid": owner_uid, "owner": owner}
+
+
+@api.put("/settings/advisory-desk")
+async def set_advisory_desk(request: Request):
+    user = await require_user(request)
+    if user.get("role") not in ("super_admin", "business_head"):
+        raise HTTPException(403, "Only super_admin/business_head can change advisory desk owner")
+    body = await request.json()
+    owner_uid = body.get("owner_employee_uid") or None
+    if owner_uid:
+        exists = await db.employees.find_one({"employee_uid": owner_uid}, {"_id": 0})
+        if not exists:
+            raise HTTPException(400, "Employee not found")
+    before = await db.settings.find_one({"_id": "advisory_desk"}, {"_id": 0})
+    await db.settings.update_one({"_id": "advisory_desk"},
+                                 {"$set": {"owner_employee_uid": owner_uid,
+                                           "updated_at": datetime.now(timezone.utc).isoformat(),
+                                           "updated_by": user["user_id"]}},
+                                 upsert=True)
+    after = await db.settings.find_one({"_id": "advisory_desk"}, {"_id": 0})
+    await audit(user, "setting", "advisory_desk", "updated", before, after)
+    return after
 
 
 @api.get("/opportunities")
