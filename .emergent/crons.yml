@@ -6,3 +6,17 @@ crons:
     method: POST
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
     enabled: true
+  - name: query-sla-check
+    description: "Every hour: escalate any lender query still open past its lender TAT straight to the case owner's manager"
+    cron: "0 * * * *"
+    endpoint: "{{BASE_URL}}/api/cron/query-sla"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true
+  - name: monthly-payout-batch
+    description: "1st of every month 09:30 IST: build the CP commission + employee incentive payout batch CSV for Finance"
+    cron: "0 4 1 * *"
+    endpoint: "{{BASE_URL}}/api/cron/payout-batch"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

@@ -37,45 +37,78 @@ import AdminSettings from "@/pages/AdminSettings";
 import Renewals from "@/pages/Renewals";
 import LeadImport from "@/pages/LeadImport";
 import PartnerPortal from "@/pages/PartnerPortal";
+import Payouts from "@/pages/Payouts";
+import PublicLayout from "@/components/layout/PublicLayout";
+import LandingPage from "@/pages/public/LandingPage";
+import ProductsPage from "@/pages/public/ProductsPage";
+import ProductDetail from "@/pages/public/ProductDetail";
+import { Thanks, ApplyForm } from "@/pages/public/ApplyForm";
+import CustomerDashboard from "@/pages/public/CustomerDashboard";
 
 function AppRouter() {
   const location = useLocation();
-  if (location.hash?.includes("session_id=")) {
-    return <AuthCallback/>;
-  }
+  if (location.hash?.includes("session_id=")) return <AuthCallback/>;
   return <AppRoutes/>;
 }
 
 function AppRoutes() {
   const { user, loading } = useAuth();
-  if (loading) {
-    return <div className="h-screen flex items-center justify-center text-slate-500">Loading…</div>;
-  }
+  if (loading) return <div className="h-screen flex items-center justify-center text-slate-500">Loading…</div>;
+
+  // Public marketing site - always accessible
+  const publicRoutes = (
+    <Route element={<PublicShell user={user}/>}>
+      <Route path="/" element={<LandingPage/>}/>
+      <Route path="/products" element={<ProductsPage/>}/>
+      <Route path="/product/:slug" element={<ProductDetail/>}/>
+      <Route path="/apply" element={<ApplyForm/>}/>
+      <Route path="/apply/thanks" element={<Thanks/>}/>
+    </Route>
+  );
+
   if (!user) {
     return (
       <Routes>
+        {publicRoutes}
         <Route path="/login" element={<Login/>}/>
         <Route path="/auth/callback" element={<AuthCallback/>}/>
-        <Route path="*" element={<Navigate to="/login" replace/>}/>
+        <Route path="*" element={<Navigate to="/" replace/>}/>
       </Routes>
     );
   }
-  // Partner Portal routing
+
+  // Customer role → customer portal + public marketing pages
+  if (user.role === "customer") {
+    return (
+      <Routes>
+        {publicRoutes}
+        <Route path="/auth/callback" element={<AuthCallback/>}/>
+        <Route path="/my" element={<CustomerDashboard user={user}/>}/>
+        <Route path="/dashboard" element={<Navigate to="/my" replace/>}/>
+        <Route path="*" element={<Navigate to="/my" replace/>}/>
+      </Routes>
+    );
+  }
+
+  // Partner Portal
   if (user.role === "channel_partner") {
     return (
       <Routes>
+        {publicRoutes}
         <Route path="/auth/callback" element={<AuthCallback/>}/>
         <Route path="/partner/*" element={<PartnerPortal user={user}/>}/>
         <Route path="*" element={<Navigate to="/partner/dashboard" replace/>}/>
       </Routes>
     );
   }
+
+  // Internal team
   return (
     <Routes>
+      {publicRoutes}
       <Route path="/login" element={<Navigate to="/dashboard" replace/>}/>
       <Route path="/auth/callback" element={<AuthCallback/>}/>
       <Route element={<AuthedShell user={user}/>}>
-        <Route path="/" element={<Navigate to="/dashboard" replace/>}/>
         <Route path="/dashboard" element={<Dashboard/>}/>
         <Route path="/leads" element={<Leads/>}/>
         <Route path="/leads/import" element={<LeadImport/>}/>
@@ -100,6 +133,7 @@ function AppRoutes() {
         <Route path="/cp-commissions" element={<CPCommissions/>}/>
         <Route path="/employees" element={<Employees/>}/>
         <Route path="/incentives" element={<Incentives/>}/>
+        <Route path="/payouts" element={<Payouts/>}/>
         <Route path="/reports" element={<Reports/>}/>
         <Route path="/renewals" element={<Renewals/>}/>
         <Route path="/admin/users" element={<AdminUsers/>}/>
@@ -113,11 +147,10 @@ function AppRoutes() {
 }
 
 function AuthedShell({ user }) {
-  return (
-    <AppShell user={user}>
-      <Outlet/>
-    </AppShell>
-  );
+  return <AppShell user={user}><Outlet/></AppShell>;
+}
+function PublicShell({ user }) {
+  return <PublicLayout user={user}><Outlet/></PublicLayout>;
 }
 
 export default function App() {

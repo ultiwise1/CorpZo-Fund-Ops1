@@ -43,6 +43,7 @@ const NAV = [
   { section: "Performance", items: [
     { to: "/employees", label: "Employees", icon: UsersRound, testid: "nav-employees" },
     { to: "/incentives", label: "Incentives", icon: Target, testid: "nav-incentives" },
+    { to: "/payouts", label: "Payouts", icon: HandCoins, testid: "nav-payouts" },
     { to: "/reports", label: "Reports", icon: TrendingUp, testid: "nav-reports" },
     { to: "/renewals", label: "Renewal Radar", icon: Award, testid: "nav-renewals" },
   ]},

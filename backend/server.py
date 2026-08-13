@@ -9,12 +9,13 @@ from bson import ObjectId
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, List, Any, Dict
-import os, uuid, logging, io
+import os, uuid, logging, io, asyncio
 
 from auth import fetch_session_data, set_session_cookie, clear_session_cookie, get_current_user
 from storage import init_storage, put_object, get_object, APP_NAME
 from uids import gen_uid
 from seed import seed_demo, seed_supplemental
+from notify import notify
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -99,7 +100,7 @@ async def auth_session(request: Request, response: Response):
     else:
         # New user — first-ever signup gets super_admin, else default sales_agent
         user_id = f"user_{uuid.uuid4().hex[:12]}"
-        role = "super_admin" if email == os.environ.get("OWNER_EMAIL") else "sales_agent"
+        role = "super_admin" if email == os.environ.get("OWNER_EMAIL") else "customer"
         emp_uid = await gen_uid(db, "employee")
         await db.users.insert_one({
             "user_id": user_id, "email": email, "name": name, "picture": picture,
@@ -1369,7 +1370,138 @@ async def pipeline_report(request: Request):
              "sanctioned": r["sanctioned"], "disbursed": r["disbursed"]} for r in rows]
 
 
-# ============== INVITE USER (Super Admin only) ==============
+# ============== PUBLIC / CUSTOMER (Urban Money-style) ==============
+PUBLIC_PRODUCTS = [
+    {"slug": "home-loan", "key": "home_loan", "title": "Home Loan", "tagline": "Own your home from ₹5 L to ₹10 Cr",
+     "rate_from": 8.35, "tenure_max": 360, "min_amount": 500000, "max_amount": 100000000,
+     "hero_image": "https://images.unsplash.com/photo-1568605114967-8130f3a36994?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "business-loan", "key": "business_loan", "title": "Business Loan", "tagline": "Unsecured funds to fuel growth",
+     "rate_from": 12.0, "tenure_max": 60, "min_amount": 200000, "max_amount": 50000000,
+     "hero_image": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "lap", "key": "lap", "title": "Loan Against Property", "tagline": "Unlock value from your property",
+     "rate_from": 9.25, "tenure_max": 180, "min_amount": 1000000, "max_amount": 250000000,
+     "hero_image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "personal-loan", "key": "personal_loan", "title": "Personal Loan", "tagline": "Instant unsecured funds up to ₹40 L",
+     "rate_from": 10.5, "tenure_max": 60, "min_amount": 50000, "max_amount": 4000000,
+     "hero_image": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "working-capital", "key": "working_capital", "title": "Working Capital", "tagline": "OD / CC to keep operations liquid",
+     "rate_from": 9.5, "tenure_max": 12, "min_amount": 500000, "max_amount": 500000000,
+     "hero_image": "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "cc-od", "key": "cc_od", "title": "CC / OD", "tagline": "Revolving credit for business needs",
+     "rate_from": 9.75, "tenure_max": 12, "min_amount": 500000, "max_amount": 500000000,
+     "hero_image": "https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "term-loan", "key": "term_loan", "title": "Term Loan", "tagline": "Structured funding for CAPEX & expansion",
+     "rate_from": 9.0, "tenure_max": 120, "min_amount": 1000000, "max_amount": 1000000000,
+     "hero_image": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "equipment-finance", "key": "equipment_finance", "title": "Equipment Finance", "tagline": "Fund plant & machinery to 90% LTV",
+     "rate_from": 10.5, "tenure_max": 84, "min_amount": 500000, "max_amount": 500000000,
+     "hero_image": "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "project-finance", "key": "project_finance", "title": "Project Finance", "tagline": "Long-tenor debt for greenfield & brownfield",
+     "rate_from": 10.0, "tenure_max": 240, "min_amount": 10000000, "max_amount": 5000000000,
+     "hero_image": "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "construction-finance", "key": "construction_finance", "title": "Construction Finance", "tagline": "Draw-based funding for developers",
+     "rate_from": 12.5, "tenure_max": 60, "min_amount": 20000000, "max_amount": 5000000000,
+     "hero_image": "https://images.unsplash.com/photo-1503387762-592deb58ef4e?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "supply-chain-finance", "key": "supply_chain_finance", "title": "Supply Chain Finance", "tagline": "Anchor-linked vendor & dealer funding",
+     "rate_from": 10.25, "tenure_max": 12, "min_amount": 1000000, "max_amount": 500000000,
+     "hero_image": "https://images.unsplash.com/photo-1553413077-190dd305871c?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "invoice-discounting", "key": "invoice_discounting", "title": "Invoice Discounting", "tagline": "Advance against approved receivables",
+     "rate_from": 10.5, "tenure_max": 6, "min_amount": 500000, "max_amount": 200000000,
+     "hero_image": "https://images.unsplash.com/photo-1554224154-22dec7ec8818?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "loan-against-securities", "key": "loan_against_securities", "title": "Loan Against Securities", "tagline": "Instant funding against MFs, shares, bonds",
+     "rate_from": 9.0, "tenure_max": 36, "min_amount": 500000, "max_amount": 500000000,
+     "hero_image": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "structured-finance", "key": "structured_finance", "title": "Structured Finance", "tagline": "Custom solutions with warehousing lenders",
+     "rate_from": 12.0, "tenure_max": 60, "min_amount": 50000000, "max_amount": 10000000000,
+     "hero_image": "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+    {"slug": "private-credit", "key": "private_credit", "title": "Private Credit", "tagline": "Non-bank strategic capital",
+     "rate_from": 14.0, "tenure_max": 60, "min_amount": 100000000, "max_amount": 20000000000,
+     "hero_image": "https://images.unsplash.com/photo-1579532537598-459ecdaf39cc?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200"},
+]
+
+
+@api.get("/public/products")
+async def public_products():
+    return PUBLIC_PRODUCTS
+
+
+@api.get("/public/products/{slug}")
+async def public_product(slug: str):
+    p = next((x for x in PUBLIC_PRODUCTS if x["slug"] == slug), None)
+    if not p: raise HTTPException(404, "Product not found")
+    # Include an indicative lender panel
+    lenders = await db.lenders.find({"products": p["key"], "active": True}, {"_id": 0, "name": 1, "roi_min": 1, "roi_max": 1, "lender_type": 1, "tat_days": 1}).limit(8).to_list(8)
+    return {**p, "lenders": lenders}
+
+
+@api.post("/public/apply")
+async def public_apply(request: Request):
+    """Public lead-capture endpoint used by the marketing site — no auth."""
+    body = await request.json()
+    if not body.get("name") or not body.get("mobile"):
+        raise HTTPException(422, "name and mobile required")
+    product_slug = body.get("product") or ""
+    product_key = next((p["key"] for p in PUBLIC_PRODUCTS if p["slug"] == product_slug), "business_loan")
+    lead_uid = await gen_uid(db, "lead")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    # Default assign to a sales_agent (round-robin, simple)
+    agents = await db.employees.find({"role": "sales_agent", "active": True}, {"_id": 0, "employee_uid": 1}).to_list(20)
+    assigned = None
+    if agents:
+        n = await db.counters.find_one_and_update({"_id": "public_apply_rr"}, {"$inc": {"seq": 1}}, upsert=True, return_document=True)
+        assigned = agents[(n["seq"] - 1) % len(agents)]["employee_uid"]
+    doc = {
+        "lead_uid": lead_uid, "source": "website", "source_detail": "public_apply",
+        "campaign": body.get("campaign", ""), "referral": "",
+        "channel_partner_uid": None,
+        "assigned_to": assigned, "original_owner": assigned,
+        "borrower_type": body.get("borrower_type", "business"),
+        "name": body.get("name"), "company": body.get("company", ""),
+        "mobile": body.get("mobile"), "email": body.get("email", ""),
+        "city": body.get("city", ""), "state": body.get("state", ""),
+        "product": product_key,
+        "approx_requirement": float(body.get("amount") or 0),
+        "notes": body.get("notes", "") + (f"\n\nTenure ask: {body.get('tenure_months')}m" if body.get('tenure_months') else ""),
+        "stage": "new_lead", "priority": "hot", "probability": 40,
+        "expected_closure": None, "rejection_reason": None,
+        "client_uid": None, "converted": False, "duplicate_of": None,
+        "created_at": now_iso,
+    }
+    await db.leads.insert_one(doc)
+    doc.pop("_id", None)
+    # If the user is logged in as a customer, link their user_id and echo lead_uid so their dashboard sees it
+    try:
+        u = await get_current_user(request, db)
+        await db.leads.update_one({"lead_uid": lead_uid}, {"$set": {"customer_user_id": u["user_id"], "email": u["email"] or doc["email"]}})
+    except Exception:
+        pass
+    await db.audit_logs.insert_one({
+        "audit_id": f"aud_{uuid.uuid4().hex[:12]}", "actor_uid": "public",
+        "actor_name": "Public site", "entity_type": "lead", "entity_id": lead_uid,
+        "action": "public_apply", "before": None, "after": doc, "at": now_iso,
+    })
+    return {"ok": True, "lead_uid": lead_uid}
+
+
+@api.get("/customer/me")
+async def customer_me(request: Request):
+    user = await require_user(request)
+    if user.get("role") != "customer":
+        raise HTTPException(403, "Customer portal only")
+    leads = await db.leads.find({"$or": [{"customer_user_id": user["user_id"]}, {"email": user["email"]}]}, {"_id": 0}).to_list(200)
+    client_uids = list({l.get("client_uid") for l in leads if l.get("client_uid")})
+    emails = [user["email"]]
+    clients = await db.clients.find({"$or": [{"client_uid": {"$in": client_uids}}, {"email": {"$in": emails}}]}, {"_id": 0}).to_list(50)
+    case_client_uids = [c["client_uid"] for c in clients]
+    cases = await db.cases.find({"client_uid": {"$in": case_client_uids}}, {"_id": 0}).to_list(100)
+    # sanitize confidential fields
+    for c in cases:
+        for k in ["credit_owner", "expected_revenue", "actual_revenue"]:
+            c.pop(k, None)
+    return {"user": user, "leads": leads, "clients": clients, "cases": cases}
+
+
+
 @api.post("/users/invite")
 async def invite_user(request: Request):
     actor = await require_user(request)
@@ -1523,6 +1655,7 @@ async def _process_hot_lead_followups():
         "stage": {"$nin": ["closed", "lost", "rejected", "not_interested"]},
     }, {"_id": 0}).to_list(500)
     notified = 0
+    app_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
     for lead in hot:
         latest = await db.activities.find_one(
             {"entity_type": "lead", "entity_id": lead["lead_uid"]},
@@ -1531,23 +1664,19 @@ async def _process_hot_lead_followups():
         last_touch = (latest or {}).get("created_at") or lead.get("created_at")
         if not last_touch or last_touch > cutoff_24h:
             continue
-        owner_emp = await db.employees.find_one({"employee_uid": lead.get("assigned_to")}, {"_id": 0, "user_id": 1, "manager_uid": 1})
+        owner_emp = await db.employees.find_one({"employee_uid": lead.get("assigned_to")}, {"_id": 0})
         if not owner_emp:
             continue
         manager_emp = None
         if owner_emp.get("manager_uid"):
-            manager_emp = await db.employees.find_one({"employee_uid": owner_emp["manager_uid"]}, {"_id": 0, "user_id": 1})
-        title = f"Hot lead cold: {lead['name']} ({lead['lead_uid']})"
+            manager_emp = await db.employees.find_one({"employee_uid": owner_emp["manager_uid"]}, {"_id": 0})
+        title = f"Hot lead going cold: {lead['name']}"
+        body_msg = f"No activity in 24+ hours on hot lead {lead['lead_uid']}. Call or WhatsApp today."
+        link = f"{app_url}/leads/{lead['lead_uid']}" if app_url else None
         for u in filter(None, [owner_emp, manager_emp]):
-            await db.notifications.insert_one({
-                "notification_id": f"notif_{uuid.uuid4().hex[:10]}",
-                "user_id": u["user_id"], "title": title,
-                "body": f"No activity in the last 24 hours on hot lead {lead['lead_uid']} — please act.",
-                "link": f"/leads/{lead['lead_uid']}", "kind": "warning",
-                "read": False, "created_at": now.isoformat(),
-            })
+            await notify(db, u.get("user_id"), title, body_msg, link, "warning",
+                         email=u.get("email"), mobile=None)
             notified += 1
-        # Escalate: create a task for owner
         await db.tasks.insert_one({
             "task_id": await gen_uid(db, "task"),
             "title": f"[Auto] Re-engage hot lead {lead['lead_uid']}",
@@ -1560,9 +1689,187 @@ async def _process_hot_lead_followups():
             "status": "open", "origin": "auto_followup",
             "created_at": now.isoformat(),
         })
-        # mark lead escalated
         await db.leads.update_one({"lead_uid": lead["lead_uid"]}, {"$set": {"stage": "escalated"}})
     return notified
+
+
+async def _process_query_sla():
+    """Escalate any lender query whose (created_at + lender.tat_days) < now."""
+    now = datetime.now(timezone.utc)
+    lender_tat = {l["lender_id"]: l.get("tat_days", 10) for l in await db.lenders.find({}, {"_id": 0, "lender_id": 1, "tat_days": 1}).to_list(200)}
+    open_q = await db.lender_queries.find(
+        {"status": {"$in": ["open", "awaiting_client", "awaiting_internal"]},
+         "escalated": {"$ne": True}},
+        {"_id": 0}
+    ).to_list(500)
+    escalated = 0
+    app_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    for q in open_q:
+        app_doc = await db.applications.find_one({"application_uid": q.get("application_uid")}, {"_id": 0, "lender_id": 1})
+        tat = lender_tat.get((app_doc or {}).get("lender_id"), 10)
+        try:
+            created = datetime.fromisoformat(q["created_at"])
+        except Exception:
+            continue
+        due = created + timedelta(days=int(tat))
+        if now < due:
+            continue
+        case = await db.cases.find_one({"case_uid": q["case_uid"]}, {"_id": 0})
+        if not case: continue
+        owner = await db.employees.find_one({"employee_uid": case.get("sales_owner")}, {"_id": 0})
+        manager = None
+        if owner and owner.get("manager_uid"):
+            manager = await db.employees.find_one({"employee_uid": owner["manager_uid"]}, {"_id": 0})
+        # Mark escalated + red flag on case
+        await db.lender_queries.update_one({"query_id": q["query_id"]},
+                                           {"$set": {"escalated": True, "escalated_at": now.isoformat()}})
+        await db.cases.update_one({"case_uid": case["case_uid"]},
+                                  {"$set": {"escalation_flag": "red"}})
+        title = f"Query past TAT: {case['case_uid']}"
+        body_msg = f"Lender query has been open beyond {tat}d TAT. Escalating for immediate action.\n\n\"{q['query_text']}\""
+        link = f"{app_url}/cases/{case['case_uid']}" if app_url else None
+        for u in filter(None, [owner, manager]):
+            await notify(db, u.get("user_id"), title, body_msg, link, "warning",
+                         email=u.get("email"), mobile=None)
+            escalated += 1
+    return escalated
+
+
+async def _process_payout_batch():
+    """Package all approved CP commissions + finance-approved incentives into one batch."""
+    now = datetime.now(timezone.utc)
+    period = now.strftime("%Y-%m")
+    batch_id = f"PO-{period}-{uuid.uuid4().hex[:6]}"
+    # eligible items
+    cp = await db.cp_commissions.find(
+        {"status": {"$in": ["approved", "accrued"]},
+         "batch_id": {"$exists": False}}, {"_id": 0}
+    ).to_list(1000)
+    inc = await db.incentives.find(
+        {"status": {"$in": ["manager_approved", "finance_approved", "payable"]},
+         "batch_id": {"$exists": False}}, {"_id": 0}
+    ).to_list(1000)
+    if not cp and not inc:
+        return {"batch_id": batch_id, "period": period, "cp_count": 0, "incentive_count": 0, "total_amount": 0}
+
+    cp_total = sum(x.get("payable_amount", 0) for x in cp)
+    inc_total = sum((x.get("override_amount") or x.get("calculated_amount") or 0) for x in inc)
+
+    # Build CSV
+    lines = ["Beneficiary Type,ID,Case UID,Amount,TDS,Payable,Period,Reference"]
+    for x in cp:
+        lines.append(f"channel_partner,{x['partner_uid']},{x['case_uid']},{x['commission_amount']:.2f},{x.get('tds_amount', 0):.2f},{x.get('payable_amount', 0):.2f},{period},{x['commission_id']}")
+    for x in inc:
+        payable = (x.get("override_amount") or x.get("calculated_amount") or 0)
+        lines.append(f"employee,{x['employee_uid']},,{payable:.2f},0,{payable:.2f},{x.get('period', period)},{x['incentive_id']}")
+    csv_body = "\n".join(lines) + "\n"
+
+    batch_doc = {
+        "batch_id": batch_id, "period": period,
+        "cp_count": len(cp), "incentive_count": len(inc),
+        "cp_total": cp_total, "incentive_total": inc_total,
+        "total_amount": cp_total + inc_total,
+        "csv": csv_body, "status": "ready",
+        "created_at": now.isoformat(),
+    }
+    await db.payout_batches.insert_one(batch_doc)
+    batch_doc.pop("_id", None)
+
+    # Mark items batched
+    for x in cp:
+        await db.cp_commissions.update_one({"commission_id": x["commission_id"]},
+                                           {"$set": {"batch_id": batch_id}})
+    for x in inc:
+        await db.incentives.update_one({"incentive_id": x["incentive_id"]},
+                                       {"$set": {"batch_id": batch_id}})
+
+    # Notify finance team
+    finance_users = await db.users.find({"role": "finance"}, {"_id": 0}).to_list(20)
+    app_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+    for u in finance_users:
+        await notify(db, u["user_id"],
+                     f"Payout batch {batch_id} ready",
+                     f"{len(cp)} channel partner commissions and {len(inc)} employee incentives — total {cp_total + inc_total:,.0f}. Download CSV in CorpZo → Payouts.",
+                     f"{app_url}/payouts" if app_url else None, "info",
+                     email=u.get("email"))
+    return batch_doc
+
+
+@api.post("/cron/query-sla")
+async def cron_query_sla(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import hmac
+    auth = request.headers.get("Authorization", "")
+    expected = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    if not auth.startswith("Bearer ") or not expected or not hmac.compare_digest(auth[7:], expected):
+        raise HTTPException(401, "Unauthorized")
+    asyncio.create_task(_process_query_sla())
+    return {"accepted": True}
+
+
+@api.post("/cron/payout-batch")
+async def cron_payout_batch(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import hmac
+    auth = request.headers.get("Authorization", "")
+    expected = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    if not auth.startswith("Bearer ") or not expected or not hmac.compare_digest(auth[7:], expected):
+        raise HTTPException(401, "Unauthorized")
+    asyncio.create_task(_process_payout_batch())
+    return {"accepted": True}
+
+
+# ============== PAYOUTS (Finance) ==============
+@api.get("/payouts")
+async def list_payouts(request: Request):
+    user = await require_user(request)
+    if user["role"] not in ("super_admin", "business_head", "finance"):
+        raise HTTPException(403, "Finance only")
+    rows = await db.payout_batches.find({}, {"_id": 0, "csv": 0}).sort("created_at", -1).to_list(50)
+    return rows
+
+
+@api.post("/payouts/run-now")
+async def run_payout_now(request: Request):
+    user = await require_user(request)
+    if user["role"] not in ("super_admin", "business_head", "finance"):
+        raise HTTPException(403, "Finance only")
+    result = await _process_payout_batch()
+    await audit(user, "payout", result.get("batch_id", "-"), "run_now", None, {"period": result.get("period"), "total": result.get("total_amount")})
+    return result
+
+
+@api.get("/payouts/{batch_id}/csv")
+async def download_payout_csv(batch_id: str, request: Request):
+    user = await require_user(request)
+    if user["role"] not in ("super_admin", "business_head", "finance"):
+        raise HTTPException(403, "Finance only")
+    doc = await db.payout_batches.find_one({"batch_id": batch_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Batch not found")
+    return FastResponse(
+        content=doc["csv"], media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{batch_id}.csv"'},
+    )
+
+
+@api.post("/payouts/{batch_id}/mark-paid")
+async def mark_batch_paid(batch_id: str, request: Request):
+    user = await require_user(request)
+    if user["role"] not in ("super_admin", "business_head", "finance"):
+        raise HTTPException(403, "Finance only")
+    before = await db.payout_batches.find_one({"batch_id": batch_id}, {"_id": 0, "csv": 0})
+    if not before:
+        raise HTTPException(404, "Not found")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.payout_batches.update_one({"batch_id": batch_id}, {"$set": {"status": "paid", "paid_at": now_iso}})
+    await db.cp_commissions.update_many({"batch_id": batch_id}, {"$set": {"status": "paid", "paid_on": now_iso}})
+    await db.incentives.update_many({"batch_id": batch_id}, {"$set": {"status": "paid", "paid_on": now_iso}})
+    await audit(user, "payout", batch_id, "marked_paid", before, {"status": "paid"})
+    return {"ok": True}
+
+
+
 
 
 @api.post("/cron/hot-leads")
@@ -1573,7 +1880,6 @@ async def cron_hot_leads(request: Request):
     expected = os.environ.get("WEBHOOK_CRON_SECRET", "")
     if not auth.startswith("Bearer ") or not expected or not hmac.compare_digest(auth[7:], expected):
         raise HTTPException(401, "Unauthorized")
-    # tiny background handoff — run and return immediately (still bounded by 5s)
     import asyncio as _a
     _a.create_task(_process_hot_lead_followups())
     return {"accepted": True}

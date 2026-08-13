@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Encode+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,31 +6,37 @@
 
 @layer base {
     :root {
-        --background: 210 40% 98%;
-        --foreground: 222 47% 11%;
+        /* VenturaZ-inspired palette: deep forest green + gold accent */
+        --background: 150 30% 98%;
+        --foreground: 157 61% 15%;         /* #0F3D2E */
         --card: 0 0% 100%;
-        --card-foreground: 222 47% 11%;
+        --card-foreground: 157 61% 15%;
         --popover: 0 0% 100%;
-        --popover-foreground: 222 47% 11%;
-        --primary: 222 47% 11%;
-        --primary-foreground: 210 40% 98%;
-        --secondary: 210 40% 96%;
-        --secondary-foreground: 222 47% 11%;
-        --muted: 210 40% 96%;
-        --muted-foreground: 215 16% 47%;
-        --accent: 20 91% 41%;
-        --accent-foreground: 0 0% 100%;
+        --popover-foreground: 157 61% 15%;
+        --primary: 163 49% 24%;             /* #1F5B4A brand green */
+        --primary-foreground: 0 0% 100%;
+        --secondary: 150 25% 95%;
+        --secondary-foreground: 157 61% 15%;
+        --muted: 150 20% 95%;
+        --muted-foreground: 157 20% 40%;
+        --accent: 51 100% 50%;              /* #FFD700 gold */
+        --accent-foreground: 157 61% 15%;   /* dark green text on gold */
         --destructive: 0 72% 45%;
         --destructive-foreground: 0 0% 100%;
-        --border: 214 32% 91%;
-        --input: 214 32% 91%;
-        --ring: 20 91% 41%;
-        --chart-1: 20 91% 41%;
-        --chart-2: 222 47% 11%;
-        --chart-3: 215 25% 47%;
-        --chart-4: 43 74% 52%;
+        --border: 150 20% 88%;
+        --input: 150 20% 88%;
+        --ring: 163 49% 30%;
+        --chart-1: 163 49% 24%;
+        --chart-2: 51 100% 50%;
+        --chart-3: 157 30% 40%;
+        --chart-4: 44 100% 35%;
         --chart-5: 174 58% 39%;
         --radius: 0.5rem;
+        /* Custom brand tokens */
+        --brand-dark: 157 61% 15%;
+        --brand-green: 163 49% 24%;
+        --brand-gold: 51 100% 50%;
+        --brand-gold-deep: 44 100% 27%;
     }
 }
 
@@ -44,16 +50,15 @@ html, body, #root {
 
 body {
     margin: 0;
-    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-family: 'Encode Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     background: hsl(var(--background));
     color: hsl(var(--foreground));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: 'ss01', 'cv02', 'cv04';
 }
 
 h1, h2, h3, h4, h5, h6, .font-display {
-    font-family: 'Outfit', 'IBM Plex Sans', system-ui, sans-serif;
+    font-family: 'Encode Sans', system-ui, sans-serif;
     letter-spacing: -0.01em;
 }
 
@@ -93,32 +98,33 @@ h1, h2, h3, h4, h5, h6, .font-display {
     font-variant-numeric: tabular-nums;
 }
 
-/* Sidebar */
+/* Sidebar (dark forest green) */
 .sidebar-item {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 7px 12px;
     border-radius: 6px;
-    color: hsl(215 25% 60%);
+    color: hsl(150 25% 75% / 0.85);
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
     transition: background-color 120ms ease, color 120ms ease;
 }
 .sidebar-item:hover {
-    background: rgba(255,255,255,0.05);
-    color: white;
+    background: rgba(255, 215, 0, 0.08);
+    color: hsl(51 100% 70%);
 }
 .sidebar-item.active {
-    background: hsl(20 91% 41% / 0.15);
-    color: hsl(20 91% 55%);
+    background: hsl(51 100% 50% / 0.16);
+    color: hsl(51 100% 62%);
+    box-shadow: inset 2px 0 0 hsl(51 100% 50%);
 }
 .sidebar-section-title {
     text-transform: uppercase;
     font-size: 10.5px;
     letter-spacing: 0.08em;
-    color: hsl(215 20% 45%);
+    color: hsl(150 15% 55%);
     padding: 12px 12px 4px;
     font-weight: 600;
 }
@@ -133,12 +139,13 @@ h1, h2, h3, h4, h5, h6, .font-display {
     font-weight: 600;
     line-height: 1.4;
 }
-.pill-green { background: hsl(142 76% 94%); color: hsl(142 71% 25%); }
-.pill-amber { background: hsl(45 96% 91%); color: hsl(35 92% 30%); }
+.pill-green { background: hsl(163 49% 92%); color: hsl(163 49% 24%); }
+.pill-amber { background: hsl(51 100% 90%); color: hsl(44 100% 27%); }
 .pill-red   { background: hsl(0 84% 94%); color: hsl(0 74% 35%); }
 .pill-blue  { background: hsl(210 100% 94%); color: hsl(210 82% 32%); }
-.pill-slate { background: hsl(210 40% 94%); color: hsl(215 25% 30%); }
-.pill-terr  { background: hsl(20 91% 94%); color: hsl(20 91% 32%); }
+.pill-slate { background: hsl(150 20% 92%); color: hsl(157 30% 30%); }
+.pill-terr  { background: hsl(51 100% 90%); color: hsl(44 100% 27%); }
+.pill-gold  { background: hsl(51 100% 50%); color: hsl(157 61% 15%); }
 
 /* Scroll */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

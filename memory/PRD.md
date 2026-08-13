@@ -100,3 +100,11 @@ Lead • Client • Case • Employee • ChannelPartner • Document • PDForm
 - Configurable incentive/CP-commission rule engine UI
 - Manager escalation SLA rules (extension of hot-lead cron)
 - CP portal document exchange
+
+
+## Iteration 3 (Feb 2026) — Public marketing + brand refresh
+- **Brand palette refreshed** to venturaz-inspired deep-forest-green + gold: `#0F3D2E` foreground, `#1F5B4A` brand green, `#FFD84D` gold accent, `#16A981` vibrant CTA. Typography swapped to Encode Sans across the app; index.css design tokens updated.
+- **Vibrant urbanmoney-style landing page** at `/` with: big hero banner (dark-green gradient, concentric-circle motif, product picker chips), colour-tinted product tile grid (per-slug icon + tint), 3-step "How it works" timeline, standalone EMI Calculator strip with gold sliders, 10-lender logo wall, dark "Why CorpZo" band with coloured icon tiles, testimonials with 4.8/5 rating badge, FAQ accordion, and a green→gold gradient final CTA.
+- **PublicLayout** header/footer restyled with brand green + gold links; sticky-nav with new logo lockup.
+- **Customer dashboard + apply + product detail** re-themed to the new palette (backgrounds `#FAFAF7`, borders `#0F3D2E/10`, CTAs `#1F5B4A`).
+- **Internal CRM sidebar** dark-green shell with gold accent left-border on active items; pill classes updated.
