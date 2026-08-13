@@ -1811,6 +1811,353 @@ async def _process_payout_batch():
     return batch_doc
 
 
+# ============== DOC DEFICIENCY → CORPZO ADVISORY OPPORTUNITIES ==============
+DOC_CATEGORIES_REQUIRED = ["KYC", "Corporate", "Financial", "Banking", "GST/Tax", "Existing Loans", "Security/Collateral", "Legal"]
+
+ADVISORY_SERVICES = {
+    "KYC":                 {"name": "KYC & Compliance Advisory",          "fee": 5000,  "sla_days": 7},
+    "Corporate":           {"name": "Company Secretarial & ROC Filings",  "fee": 15000, "sla_days": 14},
+    "Financial":           {"name": "Financial Statement Prep & Audit",   "fee": 25000, "sla_days": 21},
+    "Banking":             {"name": "Banking Advisory & Account Setup",   "fee": 10000, "sla_days": 7},
+    "GST/Tax":             {"name": "GST Registration & Tax Advisory",    "fee": 15000, "sla_days": 14},
+    "Existing Loans":      {"name": "Debt Consolidation & Refinance Advisory", "fee": 25000, "sla_days": 21},
+    "Security/Collateral": {"name": "Property Valuation & Title Search",  "fee": 15000, "sla_days": 14},
+    "Legal":               {"name": "Legal Documentation & Vetting",      "fee": 20000, "sla_days": 14},
+}
+
+
+@api.get("/cases/{case_uid}/doc-deficiency")
+async def doc_deficiency(case_uid: str, request: Request):
+    await require_user(request)
+    case = await db.cases.find_one({"case_uid": case_uid}, {"_id": 0})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    present = set(await db.documents.distinct("category", {"case_uid": case_uid}))
+    existing_opps = await db.opportunities.find(
+        {"source_case_uid": case_uid}, {"deficient_doc_category": 1, "_id": 0}
+    ).to_list(50)
+    already = {o.get("deficient_doc_category") for o in existing_opps}
+    missing = []
+    for cat in DOC_CATEGORIES_REQUIRED:
+        if cat in present:
+            continue
+        svc = ADVISORY_SERVICES.get(cat, {"name": f"{cat} Advisory", "fee": 5000, "sla_days": 7})
+        missing.append({
+            "category": cat, "service_name": svc["name"], "estimated_fee": svc["fee"],
+            "sla_days": svc["sla_days"], "already_opportunity": cat in already,
+        })
+    present_req = [c for c in DOC_CATEGORIES_REQUIRED if c in present]
+    return {
+        "case_uid": case_uid,
+        "present": sorted(list(present)),
+        "missing": missing,
+        "required_count": len(DOC_CATEGORIES_REQUIRED),
+        "present_count": len(present_req),
+    }
+
+
+@api.post("/cases/{case_uid}/opportunities")
+async def create_opportunity(case_uid: str, request: Request):
+    user = await require_user(request)
+    body = await request.json()
+    category = body.get("category")
+    if not category:
+        raise HTTPException(400, "category is required")
+    case = await db.cases.find_one({"case_uid": case_uid}, {"_id": 0})
+    if not case:
+        raise HTTPException(404, "Case not found")
+    dup = await db.opportunities.find_one({
+        "source_case_uid": case_uid, "deficient_doc_category": category,
+        "status": {"$ne": "dropped"}
+    })
+    if dup:
+        raise HTTPException(400, f"Opportunity for {category} already exists on this case")
+    svc = ADVISORY_SERVICES.get(category, {"name": f"{category} Advisory", "fee": 5000, "sla_days": 7})
+    now = datetime.now(timezone.utc)
+    opp_uid = await gen_uid(db, "opportunity")
+    client = await db.clients.find_one({"client_uid": case.get("client_uid")}, {"_id": 0}) or {}
+    doc = {
+        "opportunity_uid": opp_uid,
+        "source_case_uid": case_uid,
+        "source_client_uid": case.get("client_uid"),
+        "client_name": client.get("name") or client.get("company"),
+        "client_mobile": client.get("mobile"),
+        "deficient_doc_category": category,
+        "service_name": svc["name"],
+        "estimated_fee": body.get("estimated_fee", svc["fee"]),
+        "sla_days": svc["sla_days"],
+        "status": "open",
+        "assigned_to": case.get("sales_owner"),
+        "notes": body.get("notes", ""),
+        "created_by": user["user_id"],
+        "created_at": now.isoformat(),
+    }
+    await db.opportunities.insert_one(doc)
+    doc.pop("_id", None)
+    await audit(user, "opportunity", opp_uid, "created", None, doc)
+    await push_activity("case", case_uid, "opportunity", user,
+                        f"Advisory opportunity created: {svc['name']} (est ₹{svc['fee']:,})")
+    if case.get("sales_owner"):
+        owner_user = await db.users.find_one({"employee_uid": case["sales_owner"]}, {"_id": 0})
+        if owner_user:
+            app_url = os.environ.get("APP_PUBLIC_URL", "").rstrip("/")
+            await notify(db, owner_user["user_id"],
+                         "New advisory opportunity",
+                         f"{svc['name']} (est ₹{svc['fee']:,}) — from case {case_uid}",
+                         f"{app_url}/opportunities" if app_url else None, "info",
+                         email=owner_user.get("email"))
+    return doc
+
+
+@api.get("/opportunities")
+async def list_opportunities(request: Request, status: Optional[str] = None):
+    await require_user(request)
+    q = {}
+    if status:
+        q["status"] = status
+    rows = await db.opportunities.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return rows
+
+
+@api.patch("/opportunities/{opportunity_uid}")
+async def update_opportunity(opportunity_uid: str, request: Request):
+    user = await require_user(request)
+    body = await request.json()
+    before = await db.opportunities.find_one({"opportunity_uid": opportunity_uid}, {"_id": 0})
+    if not before:
+        raise HTTPException(404, "Not found")
+    allowed = {"status", "assigned_to", "notes", "estimated_fee"}
+    updates = {k: v for k, v in body.items() if k in allowed}
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await db.opportunities.update_one({"opportunity_uid": opportunity_uid}, {"$set": updates})
+    after = await db.opportunities.find_one({"opportunity_uid": opportunity_uid}, {"_id": 0})
+    await audit(user, "opportunity", opportunity_uid, "updated", before, after)
+    return after
+
+
+# ============== WEEKLY REPORT EXPORTS ==============
+def _week_range():
+    now = datetime.now(timezone.utc)
+    ws = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    return ws, now
+
+
+async def _weekly_data():
+    ws, we = _week_range()
+    ws_iso = ws.isoformat()
+    leads = await db.leads.find({"created_at": {"$gte": ws_iso}}, {"_id": 0}).to_list(1000)
+    cases = await db.cases.find({"created_at": {"$gte": ws_iso}}, {"_id": 0}).to_list(1000)
+    sanc = await db.sanctions.find({"created_at": {"$gte": ws_iso}}, {"_id": 0}).to_list(1000)
+    disb = await db.disbursements.find({"created_at": {"$gte": ws_iso}}, {"_id": 0}).to_list(1000)
+    invs = await db.invoices.find({"created_at": {"$gte": ws_iso}}, {"_id": 0}).to_list(1000)
+    pays = await db.payments.find({"created_at": {"$gte": ws_iso}}, {"_id": 0}).to_list(1000)
+    pipeline = await db.cases.aggregate([
+        {"$group": {"_id": "$stage", "count": {"$sum": 1},
+                    "requested": {"$sum": "$requirement"},
+                    "sanctioned": {"$sum": "$sanctioned_amount"},
+                    "disbursed": {"$sum": "$disbursed_amount"}}},
+        {"$sort": {"count": -1}},
+    ]).to_list(50)
+    return {
+        "week_start": ws.strftime("%d %b %Y"),
+        "week_end":   we.strftime("%d %b %Y"),
+        "leads":         {"total": len(leads), "rows": leads},
+        "cases":         {"total": len(cases), "rows": cases},
+        "sanctions":     {"count": len(sanc), "amount": sum(s.get("amount", 0) for s in sanc), "rows": sanc},
+        "disbursements": {"count": len(disb), "amount": sum(x.get("amount", 0) for x in disb), "rows": disb},
+        "invoices":      {"count": len(invs), "amount": sum(i.get("gross_amount", 0) for i in invs), "rows": invs},
+        "payments":      {"count": len(pays), "amount": sum(p.get("amount", 0) for p in pays), "rows": pays},
+        "pipeline": pipeline,
+    }
+
+
+def _inr(n):
+    return f"Rs {(n or 0):,.0f}"
+
+
+@api.get("/reports/weekly.xlsx")
+async def report_weekly_xlsx(request: Request):
+    await require_user(request)
+    d = await _weekly_data()
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill
+
+    wb = Workbook()
+    head_font = Font(bold=True, color="FFFFFF", size=11)
+    head_fill = PatternFill("solid", fgColor="1F5B4A")
+    title_font = Font(bold=True, size=14, color="0F3D2E")
+
+    def style_head(ws, cols):
+        for c in cols:
+            ws[c].font = head_font
+            ws[c].fill = head_fill
+
+    ws = wb.active
+    ws.title = "Summary"
+    ws["A1"] = f"CorpZo Weekly Report — {d['week_start']} to {d['week_end']}"
+    ws["A1"].font = title_font
+    ws.merge_cells("A1:D1")
+    ws["A3"] = "Metric"; ws["B3"] = "Count"; ws["C3"] = "Amount"
+    style_head(ws, ["A3", "B3", "C3"])
+    summary = [
+        ("New leads",       d["leads"]["total"],         "—"),
+        ("New cases",       d["cases"]["total"],         "—"),
+        ("Sanctions",       d["sanctions"]["count"],     _inr(d["sanctions"]["amount"])),
+        ("Disbursements",   d["disbursements"]["count"], _inr(d["disbursements"]["amount"])),
+        ("Invoices raised", d["invoices"]["count"],      _inr(d["invoices"]["amount"])),
+        ("Revenue booked",  d["payments"]["count"],      _inr(d["payments"]["amount"])),
+    ]
+    for i, (label, count, amt) in enumerate(summary, start=4):
+        ws.cell(row=i, column=1, value=label)
+        ws.cell(row=i, column=2, value=count)
+        ws.cell(row=i, column=3, value=amt)
+    ws.column_dimensions["A"].width = 26
+    ws.column_dimensions["B"].width = 12
+    ws.column_dimensions["C"].width = 20
+
+    ws2 = wb.create_sheet("Pipeline")
+    ws2.append(["Stage", "Count", "Requested", "Sanctioned", "Disbursed"])
+    style_head(ws2, ["A1", "B1", "C1", "D1", "E1"])
+    for row in d["pipeline"]:
+        ws2.append([str(row.get("_id", "")).replace("_", " ").title(), row.get("count", 0),
+                    row.get("requested", 0), row.get("sanctioned", 0), row.get("disbursed", 0)])
+    for col, w in zip("ABCDE", [24, 10, 16, 16, 16]):
+        ws2.column_dimensions[col].width = w
+
+    ws3 = wb.create_sheet("Sanctions")
+    ws3.append(["Sanction UID", "Case UID", "Lender", "Amount", "Status", "Sanctioned On"])
+    style_head(ws3, ["A1", "B1", "C1", "D1", "E1", "F1"])
+    for s in d["sanctions"]["rows"]:
+        ws3.append([s.get("sanction_uid"), s.get("case_uid"), s.get("lender_name", ""),
+                    s.get("amount", 0), s.get("status", ""), s.get("sanctioned_on", "")])
+    for col, w in zip("ABCDEF", [20, 20, 24, 16, 14, 18]):
+        ws3.column_dimensions[col].width = w
+
+    ws4 = wb.create_sheet("Disbursements")
+    ws4.append(["Disbursement UID", "Case UID", "Lender", "Amount", "Disbursed On"])
+    style_head(ws4, ["A1", "B1", "C1", "D1", "E1"])
+    for x in d["disbursements"]["rows"]:
+        ws4.append([x.get("disbursement_uid"), x.get("case_uid"), x.get("lender_name", ""),
+                    x.get("amount", 0), x.get("disbursed_on", "")])
+    for col, w in zip("ABCDE", [22, 20, 24, 16, 18]):
+        ws4.column_dimensions[col].width = w
+
+    ws5 = wb.create_sheet("Revenue")
+    ws5.append(["Payment UID", "Invoice UID", "Amount", "Received On", "Mode"])
+    style_head(ws5, ["A1", "B1", "C1", "D1", "E1"])
+    for p in d["payments"]["rows"]:
+        ws5.append([p.get("payment_uid"), p.get("invoice_uid"), p.get("amount", 0),
+                    p.get("received_on", ""), p.get("mode", "")])
+    for col, w in zip("ABCDE", [20, 20, 16, 18, 14]):
+        ws5.column_dimensions[col].width = w
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"corpzo-weekly-{d['week_start'].replace(' ', '_')}.xlsx"
+    return FastResponse(
+        content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@api.get("/reports/weekly.pdf")
+async def report_weekly_pdf(request: Request):
+    await require_user(request)
+    d = await _weekly_data()
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+
+    buf = io.BytesIO()
+    pdf = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=16*mm, rightMargin=16*mm,
+                            topMargin=16*mm, bottomMargin=16*mm)
+    styles = getSampleStyleSheet()
+    brand_dark = colors.HexColor("#0F3D2E")
+    brand      = colors.HexColor("#1F5B4A")
+
+    title = ParagraphStyle("t", parent=styles["Heading1"], fontSize=20, textColor=brand_dark, spaceAfter=4)
+    sub   = ParagraphStyle("s", parent=styles["Normal"], fontSize=10, textColor=colors.grey, spaceAfter=14)
+    h2    = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=13, textColor=brand, spaceBefore=10, spaceAfter=6)
+
+    story = [
+        Paragraph("CorpZo — Weekly Management Report", title),
+        Paragraph(f"{d['week_start']} to {d['week_end']}", sub),
+        Paragraph("Executive summary", h2),
+    ]
+
+    kpi = [["Metric", "Count", "Amount"],
+           ["New leads", d["leads"]["total"], "—"],
+           ["New cases", d["cases"]["total"], "—"],
+           ["Sanctions", d["sanctions"]["count"], _inr(d["sanctions"]["amount"])],
+           ["Disbursements", d["disbursements"]["count"], _inr(d["disbursements"]["amount"])],
+           ["Invoices raised", d["invoices"]["count"], _inr(d["invoices"]["amount"])],
+           ["Revenue booked", d["payments"]["count"], _inr(d["payments"]["amount"])]]
+    t = Table(kpi, colWidths=[70*mm, 30*mm, 45*mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), brand),
+        ("TEXTCOLOR",  (0, 0), (-1, 0), colors.white),
+        ("FONTNAME",   (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ALIGN",      (1, 0), (-1, -1), "RIGHT"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+    ]))
+    story.append(t)
+
+    story.append(Paragraph("Pipeline by stage", h2))
+    pipeline = [["Stage", "Count", "Requested", "Sanctioned", "Disbursed"]]
+    for r in d["pipeline"]:
+        pipeline.append([str(r.get("_id", "")).replace("_", " ").title(), r.get("count", 0),
+                         _inr(r.get("requested", 0)), _inr(r.get("sanctioned", 0)), _inr(r.get("disbursed", 0))])
+    tp = Table(pipeline, colWidths=[45*mm, 18*mm, 28*mm, 28*mm, 28*mm])
+    tp.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), brand),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+    ]))
+    story.append(tp)
+
+    if d["sanctions"]["rows"]:
+        story.append(Paragraph("Sanctions this week", h2))
+        rows = [["Sanction UID", "Case UID", "Lender", "Amount", "Status"]]
+        for s in d["sanctions"]["rows"][:20]:
+            rows.append([s.get("sanction_uid", ""), s.get("case_uid", ""),
+                         (s.get("lender_name", "") or "")[:22],
+                         _inr(s.get("amount", 0)), s.get("status", "")])
+        ts = Table(rows, colWidths=[32*mm, 30*mm, 45*mm, 28*mm, 22*mm])
+        ts.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), brand),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+        ]))
+        story.append(ts)
+
+    story.append(Spacer(1, 8*mm))
+    story.append(Paragraph("<font size=8 color='#888'>Generated by CorpZo Debt CRM · Confidential — internal use only</font>", styles["Normal"]))
+    pdf.build(story)
+    buf.seek(0)
+    fname = f"corpzo-weekly-{d['week_start'].replace(' ', '_')}.pdf"
+    return FastResponse(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
 @api.post("/cron/query-sla")
 async def cron_query_sla(request: Request):
     # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.

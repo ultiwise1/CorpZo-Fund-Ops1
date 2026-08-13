@@ -46,6 +46,7 @@ const NAV = [
     { to: "/payouts", label: "Payouts", icon: HandCoins, testid: "nav-payouts" },
     { to: "/reports", label: "Reports", icon: TrendingUp, testid: "nav-reports" },
     { to: "/renewals", label: "Renewal Radar", icon: Award, testid: "nav-renewals" },
+    { to: "/opportunities", label: "Opportunities", icon: HandCoins, testid: "nav-opportunities" },
   ]},
   { section: "Administration", items: [
     { to: "/admin/users", label: "Users & Roles", icon: Users, testid: "nav-users" },

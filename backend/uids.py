@@ -30,6 +30,7 @@ UID_CONFIG = {
     "sanction": ("SN", 6, True),
     "disbursement": ("DB", 6, True),
     "task": ("TSK", 6, True),
+    "opportunity": ("OPP", 6, True),
 }
 
 

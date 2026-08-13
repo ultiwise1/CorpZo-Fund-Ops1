@@ -38,6 +38,7 @@ import Renewals from "@/pages/Renewals";
 import LeadImport from "@/pages/LeadImport";
 import PartnerPortal from "@/pages/PartnerPortal";
 import Payouts from "@/pages/Payouts";
+import Opportunities from "@/pages/Opportunities";
 import PublicLayout from "@/components/layout/PublicLayout";
 import LandingPage from "@/pages/public/LandingPage";
 import ProductsPage from "@/pages/public/ProductsPage";
@@ -136,6 +137,7 @@ function AppRoutes() {
         <Route path="/payouts" element={<Payouts/>}/>
         <Route path="/reports" element={<Reports/>}/>
         <Route path="/renewals" element={<Renewals/>}/>
+        <Route path="/opportunities" element={<Opportunities/>}/>
         <Route path="/admin/users" element={<AdminUsers/>}/>
         <Route path="/admin/audit" element={<AdminAudit/>}/>
         <Route path="/admin/integrations" element={<AdminIntegrations/>}/>
