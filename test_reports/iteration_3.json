@@ -1,0 +1,27 @@
+{
+  "summary": "Frontend-only verification of the 'CRM login link not working' fix as a logged-out visitor (clean context). All 5 requested flows pass: header 'CRM login' link (data-testid=crm-login-link) navigates / -> /login and renders login-page with google-signin-btn; both footer links (footer-crm-login, footer-partner-login) have href=/login and navigate to the Sign in card; direct navigation to /login renders login-page and does NOT redirect away; back-to-site-link returns to /; public-signin-btn coexists with crm-login-link for logged-out users; regression: /dashboard while logged out redirects to landing page with no crash and 0 error elements. Also verified on mobile (390x844) — footer link works. Backend testing skipped per request.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PublicNav", "issue": "Header 'CRM login' link uses 'hidden sm:inline' so it is invisible below 640px and there is no mobile hamburger nav; on phones the only path to /login is the page footer. Verified hidden at 390px.", "selector": "[data-testid=\"crm-login-link\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/login (desktop 1920x1080)", "issues": ["Large empty area in the upper half of the left brand panel — brand block at very top, hero content anchored low, leaving a big vertical gap (justify-between with sparse content). Cosmetic only, out of declared scope."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["Optional: expose the CRM login link on mobile (<640px) via a mobile menu or drop the 'hidden sm:inline' class, since the header link is the primary discoverable entry point."],
+  "critical_code_review_comments": [
+    "Both footer links (footer-crm-login and footer-partner-login) point to the same /login route; acceptable since role routing happens post-auth, but the 'Channel Partner login' label may mislead users expecting a partner-specific screen.",
+    "App.js logged-out branch has a catch-all Navigate to '/', so any deep link (e.g. /dashboard) silently loses the intended destination — consider preserving a ?next= param to redirect after Google auth."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested", "frontend": "100% (5/5 requested flows)"},
+  "seed_data_creation": "none",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "not needed — logged-out testing only; Continue with Google was not clicked",
+  "context_for_next_testing_agent": "Login link fix verified end-to-end at https://credit-ops-5.preview.emergentagent.com. Expected console noise: two 401s from the /api/auth/me session check on every logged-out page load (harmless). Remaining unverified: authenticated internal-team routing (/login -> /dashboard redirect for logged-in staff) since Google OAuth cannot be completed in-browser here.",
+  "rca_of_the_issue": "Original bug was a missing/incorrect public entry point to /login; current code adds Link to /login in PublicNav (line 38) and in the footer (lines 74-75), and App.js registers the /login route in the !user branch (line 74). Verified working."
+}

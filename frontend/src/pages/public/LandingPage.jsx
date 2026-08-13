@@ -77,24 +77,26 @@ export default function LandingPage() {
     <div data-testid="landing-page" className="text-[#0F3D2E]">
 
       {/* ==================================================================== */}
-      {/* HERO BANNER — CorpZo brand: deep green + gold + lime accents          */}
-      {/* Urban Money cues: dot-grid texture, hello chat bubble, coin motif     */}
-      {/* Venturaz cues:    concentric rings + brand-green gradient             */}
+      {/* HERO BANNER — CorpZo brand w/ Venturaz shapes + Urban Money cues       */}
+      {/* Glass morphism + liquid morphism + neon highlights                     */}
       {/* ==================================================================== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#0F3D2E] via-[#12503C] to-[#1F5B4A] text-white">
-        {/* signature CorpZo motif — concentric circles from venturaz */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#0A2E24] via-[#0F3D2E] to-[#1F5B4A] text-white">
+        {/* venturaz signature — concentric-circle motif */}
         <svg className="absolute -left-60 top-0 opacity-25" width="900" height="900" viewBox="0 0 900 900" fill="none">
           {[100,180,260,340,420,500].map(r => <circle key={r} cx="450" cy="450" r={r} stroke="#FFD84D" strokeWidth="0.5" strokeDasharray="2 8"/>)}
         </svg>
-        {/* Urban-Money-style dot grid overlay */}
+        {/* dot grid overlay */}
         <div className="absolute inset-0 bg-dot-grid opacity-40"/>
-        {/* radial gold glow */}
-        <div className="absolute inset-y-0 right-0 w-1/2 opacity-30" style={{background:"radial-gradient(ellipse at right, rgba(255,216,77,.22), transparent 60%)"}}/>
-        {/* lime energy accent */}
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 rounded-full bg-[#C6FF3B]/15 blur-3xl"/>
+
+        {/* LIQUID MORPHISM BLOBS */}
+        <div className="absolute -top-40 -right-40 w-[560px] h-[560px] bg-gradient-to-br from-[#DFFF3B]/40 to-[#00FFE1]/25 blur-3xl liquid-blob"/>
+        <div className="absolute -bottom-56 left-1/4 w-[520px] h-[520px] bg-gradient-to-tr from-[#FFD84D]/30 to-[#16A981]/25 blur-3xl liquid-blob-2"/>
+        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-[#C6FF3B]/10 blur-3xl liquid-blob-3"/>
+
+        {/* smooth fade to page */}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#FAFAF7] to-transparent"/>
 
-        {/* Floating coin motif (Urban Money's money-shower cue) */}
+        {/* Floating ₹-coin motif */}
         <div className="absolute top-16 right-[40%] opacity-30 hidden lg:block" aria-hidden>
           {[
             {x:0,y:0,d:0},{x:60,y:40,d:1},{x:-40,y:80,d:2},{x:100,y:100,d:0.5},{x:20,y:180,d:1.5}
@@ -104,29 +106,29 @@ export default function LandingPage() {
           ))}
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-6 pt-14 pb-20 grid lg:grid-cols-12 gap-10 items-center">
+        <div className="relative max-w-7xl mx-auto px-6 pt-14 pb-24 grid lg:grid-cols-12 gap-10 items-center">
           {/* LEFT — copy */}
           <div className="lg:col-span-7">
             {/* Hello chat bubble — Urban Money signature */}
             <div className="inline-flex items-center gap-2 mb-4" data-testid="hero-hello-bubble">
-              <div className="relative bg-[#C6FF3B] text-[#0F3D2E] px-3 py-1.5 rounded-2xl rounded-bl-sm font-display font-bold text-sm shadow-lg">
+              <div className="relative bg-[#DFFF3B] text-[#0F3D2E] px-3 py-1.5 rounded-2xl rounded-bl-sm font-display font-bold text-sm shadow-lg neon-glow">
                 Hello, borrower!
-                <span className="absolute -bottom-1 left-2 w-0 h-0 border-t-8 border-t-[#C6FF3B] border-l-8 border-l-transparent"/>
+                <span className="absolute -bottom-1 left-2 w-0 h-0 border-t-8 border-t-[#DFFF3B] border-l-8 border-l-transparent"/>
               </div>
-              <div className="text-xs text-white/50">👋 We compare 40+ lenders for you</div>
+              <div className="text-xs text-white/60">👋 We compare 40+ lenders for you</div>
             </div>
 
-            <div className="inline-flex items-center gap-2 bg-[#FFD84D]/15 text-[#FFD84D] text-[10.5px] font-semibold uppercase tracking-widest px-3 py-1.5 rounded-full border border-[#FFD84D]/30">
-              <Zap size={12}/> India's verified debt marketplace
+            <div className="inline-flex items-center gap-2 glass rounded-full px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-widest neon-gold">
+              <Zap size={12}/> India&apos;s verified debt marketplace
             </div>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-[64px] font-bold mt-5 leading-[1.03] text-white">
               One application.<br/>
-              <span className="text-[#FFD84D]">40+ lenders.</span> <span className="whitespace-nowrap">Best rate wins.</span>
+              <span className="neon-lime">40+ lenders.</span> <span className="whitespace-nowrap text-white">Best rate wins.</span>
             </h1>
             <p className="text-lg text-white/80 mt-5 max-w-xl">
-              Compare offers from India's top banks & NBFCs, get personalised quotes in minutes,
-              and let CorpZo's credit team drive your case end-to-end.
-              <span className="ml-1 inline-block px-2 py-0.5 rounded bg-[#C6FF3B]/20 text-[#C6FF3B] font-semibold text-sm">Zero cost until sanction</span>
+              Compare offers from India&apos;s top banks &amp; NBFCs, get personalised quotes in minutes,
+              and let CorpZo&apos;s credit team drive your case end-to-end.
+              <span className="ml-1 inline-block px-2 py-0.5 rounded bg-[#DFFF3B]/15 border border-[#DFFF3B]/30 neon-lime font-semibold text-sm">Zero cost until sanction</span>
             </p>
 
             {/* Product chips — with live rate_from */}
@@ -153,11 +155,11 @@ export default function LandingPage() {
 
             {/* CTA row */}
             <div className="flex flex-wrap gap-3 mt-8">
-              <Button className="bg-[#FFD84D] hover:bg-[#FFC821] text-[#0F3D2E] font-bold h-12 px-7 shadow-lg shadow-[#FFD84D]/20"
+              <Button className="bg-[#DFFF3B] hover:bg-[#C6FF00] text-[#0F3D2E] font-bold h-12 px-7 shadow-lg neon-glow transition-all"
                       onClick={()=>nav("/products")} data-testid="hero-explore-btn">
                 Explore all products<ArrowRight size={16} className="ml-1"/>
               </Button>
-              <Button variant="outline" className="h-12 px-6 border-white/25 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+              <Button variant="outline" className="h-12 px-6 glass border-white/25 text-white hover:bg-white/15 hover:text-white"
                       onClick={()=>nav("/apply")} data-testid="hero-apply-btn">
                 <PhoneCall size={15} className="mr-2"/>Get a call back
               </Button>
@@ -172,11 +174,13 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* RIGHT — quick apply card */}
+          {/* RIGHT — glass quick apply card */}
           <div className="lg:col-span-5">
             <div className="relative">
-              <div className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-[#FFD84D]/40 to-[#16A981]/30 blur-2xl opacity-70"/>
-              <div className="relative bg-white shadow-2xl rounded-2xl border border-white/60 p-6 text-[#0F3D2E]" data-testid="hero-quick-apply">
+              {/* neon liquid halo */}
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-[#DFFF3B]/40 to-[#00FFE1]/25 blur-2xl opacity-80 liquid-blob"/>
+              <div className="relative glass-strong rounded-2xl border border-white/25 p-6 text-[#0F3D2E]" data-testid="hero-quick-apply"
+                   style={{background:"linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78))"}}>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-2 h-2 rounded-full bg-[#16A981] animate-pulse"/>
                   <div className="text-[10.5px] uppercase tracking-widest text-[#16A981] font-bold">Instant call back</div>

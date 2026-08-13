@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 
 export function PublicNav({ user }) {
   const nav = useNavigate();
-  const logout = async () => { try { await api.post("/auth/logout"); } catch {}; nav("/"); window.location.reload(); };
+  const logout = async () => { try { await api.post("/auth/logout"); } catch { /* ignore */ }; nav("/"); window.location.reload(); };
   const startAuth = () => {
     const redirect = window.location.origin + "/auth/callback";
     window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirect)}`;
@@ -31,10 +31,13 @@ export function PublicNav({ user }) {
                 <Button size="sm" variant="ghost" onClick={logout} className="text-[#0F3D2E]/70 hover:text-[#0F3D2E]">Sign out</Button>
               </>
             ) : (
-              <Button variant="outline" size="sm" onClick={()=>nav(user.role === "channel_partner" ? "/partner/dashboard" : "/dashboard")} className="border-[#0F3D2E]/20 text-[#0F3D2E]">Open workspace</Button>
+              <Button variant="outline" size="sm" onClick={()=>nav(user.role === "channel_partner" ? "/partner/dashboard" : "/dashboard")} data-testid="open-workspace-btn" className="border-[#0F3D2E]/20 text-[#0F3D2E]">Open workspace</Button>
             )
           ) : (
-            <Button className="bg-[#1F5B4A] hover:bg-[#0F3D2E] text-white" size="sm" onClick={startAuth} data-testid="public-signin-btn">Sign in / Sign up</Button>
+            <>
+              <Link to="/login" className="text-sm text-[#0F3D2E]/70 hover:text-[#0F3D2E] font-semibold" data-testid="crm-login-link">CRM login</Link>
+              <Button className="bg-[#1F5B4A] hover:bg-[#0F3D2E] text-white" size="sm" onClick={startAuth} data-testid="public-signin-btn">Sign in / Sign up</Button>
+            </>
           )}
         </div>
       </div>
@@ -68,8 +71,8 @@ export function PublicFooter() {
         </div>
         <div><div className="text-white text-xs uppercase tracking-widest mb-3">For teams</div>
           <ul className="space-y-1.5 text-xs">
-            <li><Link to="/dashboard" className="hover:text-[#FFD700]">Internal CRM →</Link></li>
-            <li><Link to="/partner/dashboard" className="hover:text-[#FFD700]">Channel Partner Portal →</Link></li>
+            <li><Link to="/login" className="hover:text-[#FFD700]" data-testid="footer-crm-login">Internal CRM login →</Link></li>
+            <li><Link to="/login" className="hover:text-[#FFD700]" data-testid="footer-partner-login">Channel Partner login →</Link></li>
           </ul>
         </div>
       </div>

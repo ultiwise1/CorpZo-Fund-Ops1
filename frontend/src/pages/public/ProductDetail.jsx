@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import ProductArt from "@/components/ProductArt";
+import ProductHero from "@/components/ProductHero";
 
 const PRODUCT_TINTS = {
   "home-loan":{tint:"#E0F5EC",accent:"#16A981"}, "business-loan":{tint:"#FFF3D6",accent:"#D89B00"},
@@ -54,7 +55,8 @@ export default function ProductDetail() {
       <div className="max-w-7xl mx-auto px-6 pt-10">
         <div className="grid lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3">
-            <ProductArt slug={p.slug} tint={tintFor(p.slug).tint} accent={tintFor(p.slug).accent} size="lg" className="rounded-2xl mb-6"/>
+            <ProductHero title={p.title} tagline={p.tagline} slug={p.slug}
+                         tint={tintFor(p.slug).tint} accent={tintFor(p.slug).accent}/>
             <div className="text-xs uppercase tracking-widest text-[#8A6600] font-semibold">Product</div>
             <h1 className="font-display text-4xl font-semibold text-[#0F3D2E] mt-1">{p.title}</h1>
             <p className="text-[#0F3D2E]/70 mt-2 text-lg">{p.tagline}</p>

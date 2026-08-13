@@ -89,6 +89,91 @@ h1, h2, h3, h4, h5, h6, .font-display {
     50%     { transform: translateY(-8px); }
 }
 
+/* ==============================================================
+   Glass morphism
+   ============================================================== */
+.glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.glass-strong {
+    background: rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.glass-dark {
+    background: rgba(15, 61, 46, 0.35);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+.glass-light {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(15, 61, 46, 0.08);
+}
+
+/* ==============================================================
+   Liquid morphism — organic blob shapes with slow morph loops
+   ============================================================== */
+.liquid-blob {
+    border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%;
+    animation: morph 14s ease-in-out infinite;
+}
+.liquid-blob-2 {
+    border-radius: 37% 63% 51% 49% / 39% 43% 57% 61%;
+    animation: morph2 18s ease-in-out infinite;
+}
+.liquid-blob-3 {
+    border-radius: 45% 55% 39% 61% / 51% 61% 39% 49%;
+    animation: morph 22s ease-in-out infinite reverse;
+}
+@keyframes morph {
+    0%,100% { border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%; transform: rotate(0deg); }
+    33%     { border-radius: 37% 63% 51% 49% / 39% 43% 57% 61%; transform: rotate(6deg); }
+    66%     { border-radius: 45% 55% 39% 61% / 51% 61% 39% 49%; transform: rotate(-4deg); }
+}
+@keyframes morph2 {
+    0%,100% { border-radius: 40% 60% 65% 35% / 55% 40% 60% 45%; transform: rotate(0deg) scale(1); }
+    50%     { border-radius: 60% 40% 40% 60% / 40% 60% 40% 60%; transform: rotate(-8deg) scale(1.05); }
+}
+
+/* ==============================================================
+   Neon accents — vivid highlights for hero copy
+   ============================================================== */
+.neon-lime {
+    color: #DFFF3B;
+    text-shadow: 0 0 10px rgba(223,255,59,.6),
+                 0 0 24px rgba(223,255,59,.35),
+                 0 0 48px rgba(223,255,59,.15);
+}
+.neon-cyan {
+    color: #00FFE1;
+    text-shadow: 0 0 10px rgba(0,255,225,.55),
+                 0 0 24px rgba(0,255,225,.3);
+}
+.neon-gold {
+    color: #FFD84D;
+    text-shadow: 0 0 10px rgba(255,216,77,.55),
+                 0 0 24px rgba(255,216,77,.28);
+}
+.neon-glow {
+    box-shadow: 0 0 24px rgba(223,255,59,.45),
+                0 0 60px rgba(223,255,59,.22);
+}
+.neon-glow-hover:hover {
+    box-shadow: 0 0 24px rgba(223,255,59,.45),
+                0 0 60px rgba(223,255,59,.22);
+}
+.neon-ring {
+    box-shadow: 0 0 0 1px rgba(223,255,59,.55),
+                0 0 22px rgba(223,255,59,.35);
+}
+
 .tabular-nums, .num {
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum';
