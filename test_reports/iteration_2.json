@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration-2 retest of CorpZo Debt CRM. Backend: 67 pytest cases (existing backend_test.py + new test_iter2_fixes.py) — 66 passed / 1 failed. All iter1 HIGH items verified FIXED: POST /api/tasks now 422 on missing title and defaults due_date; POST /api/invoices & /api/payments return 422 on missing fields; invoice total_amount = amount*(1+gst/100)*(1-tds/100) and payment status is computed against total_amount (base-amount payment correctly leaves part_paid); dashboard funnel/top_lenders/invoices_summary and reports/pipeline now return stage/lender_id/status keys (no _id leak); documents/upload recomputes case.documentation_pct per unique category and version chain v1->v2->v3 with correct superseded_by; 40+ documents, 6 lender queries and mandates across all 6 statuses are seeded. Frontend: verified new data-testids (7 mark-paid-*, 10 advance-*, 10 role-select-*, all 9 CaseDetail tab-*), upload dialog with category select (12 options) + doc_type input + file chooser works and doc completeness moved 0%->8%, LeadDetail header no longer shows dangling separators. Full UI regression PASSED end-to-end: New Lead -> log call activity -> Convert (navigates to new case) -> upload doc (doc completeness up) -> sandbox bureau pull -> lender application -> Record Sanction (stage=Sanctioned) -> Record Disbursement (stage=Fully Disbursed, incentive accrued) -> Mandate Advance (internal_approval -> sent) -> Admin role change persisted + Audit Log entry. Two new defects found: Invoices 'Mark Paid' pays base amount so GST invoices stay part_paid and the button never clears; Sanction/Disburse dialogs never close after save (uncontrolled Dialog). Test data cleaned; baseline restored (leads=30, clients=10, cases=15, documents=40, mandates=11 across 6 statuses, EMP-0010 role restored to sales_agent).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "seed (startup) / GET /api/cases/{uid} bureau, /api/assessments", "issue": "bureau_checks and assessments are still not seeded (bureau=0, assessments=0 after cleanup) — Bureau and Assessments pages are empty on a fresh env. test_iter2_fixes.py::TestSeededData::test_bureau_checks_present is the 1 failing test."},
+      {"endpoint": "seed (startup) POST /api/invoices", "issue": "Seeded invoices (INV-2026-000001..000011) have no total_amount field; only API-created invoices get it. Payment logic falls back to amount so behaviour differs between seeded and new invoices. Backfill total_amount in seed."},
+      {"endpoint": "PATCH /api/tasks, /api/lender-queries, /api/employees, /api/lenders, /api/incentives", "issue": "Still $set the whole request body (no allow-list) — protected keys (task_id, case_uid, created_at, employee_uid) can be overwritten. cases/leads/clients/mandates/applications/documents were fixed; these were not."},
+      {"endpoint": "ALL POST/PATCH", "issue": "Validation is still hand-rolled if-checks inside handlers; models.py (524 lines) remains dead code. Non-numeric 'amount' or bad types will still raise 500 (float() ValueError)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Invoices — Mark Paid", "issue": "collect() posts amount: inv.amount (base) while the backend now settles against total_amount (GST/TDS inclusive). Clicking Mark Paid on a GST invoice leaves status=part_paid, the button stays visible and every extra click creates another duplicate payment. Reproduced on INV-2026-000017 (amount 100, total 118 -> part_paid after click). Also the table shows only base Amount, never total_amount.", "selector": "[data-testid^=\"mark-paid-\"]", "priority": "HIGH"},
+      {"component": "CaseDetail — Sanction / Disburse dialogs", "issue": "Both are rendered as uncontrolled <Dialog> (CaseDetail.jsx lines ~271 and ~307) while the handlers call setSancOpen(false)/setDisbOpen(false), which are no-ops. After 'Save Sanction'/'Save Disbursement' the record is created but the modal stays open over the refreshed page (verified by screenshot).", "selector": "[role=\"dialog\"] button:has-text(\"Save Disbursement\")", "priority": "MEDIUM"},
+      {"component": "CaseDetail upload dialog", "issue": "React a11y warning: 'Missing Description or aria-describedby for DialogContent' logged twice — add DialogDescription.", "selector": "[data-testid=\"upload-doc-btn\"]", "priority": "LOW"},
+      {"component": "AdminIntegrations", "issue": "Still open from iter1: 'Configure →' links are non-functional placeholders.", "selector": "[data-testid=\"page-body\"] a:has-text('Configure')", "priority": "LOW"},
+      {"component": "Missing data-testid (remaining)", "issue": "CaseDetail 'New application'/'Apply'/'Sanction'/'Disburse' buttons and the sanction/disbursement dialog inputs + save buttons still have no data-testid (tests fall back to role/text). Clients/Applications/Sanctions/Disbursements table rows also lack row testids.", "selector": "various", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Invoice collection", "issue": "Frontend/backend contract mismatch on invoice settlement amount (base vs total_amount) — invoice can never reach 'paid' from the UI for any invoice with GST.", "affected_selectors": ["[data-testid^=\"mark-paid-\"]"]}
+    ],
+    "design_issues": [
+      {"screen": "Bureau / Assessments pages", "issues": ["Still empty on a fresh environment because bureau_checks and assessments are not seeded"]},
+      {"screen": "Reports", "issues": ["Still no loading skeleton — headers paint before data resolves (~1s)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_iter2_fixes.py", "/app/backend/tests/backend_test.py", "/app/backend/tests/conftest.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Invoices.jsx collect(): pay (inv.total_amount ?? inv.amount) minus already-collected, and display total_amount in the table",
+    "Make the CaseDetail Sanction and Disburse dialogs controlled (open={sancOpen}/open={disbOpen} + onOpenChange) so they close after save",
+    "Seed bureau_checks and credit assessments (and backfill total_amount on seeded invoices)",
+    "Add allow-lists to PATCH /api/tasks, /api/lender-queries, /api/employees, /api/lenders, /api/incentives",
+    "Adopt Pydantic request models (models.py) so bad types return 422 instead of 500",
+    "Add data-testid to CaseDetail application/sanction/disbursement buttons, their dialog inputs and save buttons"
+  ],
+  "critical_code_review_comments": [
+    "server.py is still ~1340 lines / 60+ routes in one module — split into routers",
+    "The ObjectId leak is still guarded only by 22 hand-written doc.pop('_id', None) calls; one missed insert re-introduces a 500. Wrap inserts in a helper or use response_model",
+    "documentation_pct hard-codes a divisor of 12 inline in upload_document — move the required-category list to a constant/config so the metric is auditable",
+    "Frontend invoice/payment amount logic duplicates backend GST/TDS math implicitly; expose and consume total_amount everywhere"
+  ],
+  "updated_files": ["/app/backend/tests/test_iter2_fixes.py", "/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "98.5% (66/67 pytest; only unseeded-bureau assertion fails)", "frontend": "~92% (full lead->disbursement regression passes; Invoices Mark Paid broken, sanction/disburse modals don't close)"},
+  "seed_data_creation": "Created TEST_QA leads/clients/cases/applications/sanctions/disbursements/documents/mandates/invoices/payments/tasks via API and UI, then purged with `mongosh test_database /app/backend/tests/cleanup_test_data.js` plus deletion of EMP-0001 test incentives. Baseline verified: leads=30, clients=10, cases=15, documents=40, lender_queries=6, mandates=11 (all 6 statuses present), seeded incentives=3. EMP-0010 role restored to sales_agent. Side effects left behind: UI test advanced MAN-2026-000002 internal_approval->sent, and INV-2026-000017 is part_paid from the Mark-Paid bug.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Bearer test_session_supertoken (API) / cookie session_token=test_session_supertoken (browser), user corpzoindia@gmail.com role super_admin. Token was valid throughout this run.",
+  "context_for_next_testing_agent": "Run `pytest /app/backend/tests/ -v` (pytest.ini forces -n 2 --dist loadscope; cross-class state must use conftest fixtures ent/application). test_iter2_fixes.py covers the iter1 regressions (422 validation, invoice total_amount, dashboard/pipeline keys, documentation_pct + version chain, seeded volumes). After any run execute `mongosh test_database /app/backend/tests/cleanup_test_data.js`. Not retested this round: Assessments page write flow, Queries page write flow, mobile/tablet responsiveness, notifications bell, Documents/Bureau standalone list pages, logout. Next round should re-verify Invoices Mark Paid -> status=paid and that sanction/disbursement dialogs close.",
+  "rca_of_the_issue": "Invoices Mark Paid: backend POST /api/payments now compares cumulative payments against invoice.total_amount (GST/TDS inclusive), but Invoices.jsx still posts inv.amount (base). For an 18% GST invoice the collected amount is always ~85% of the target so status is set to part_paid, the 'Mark Paid' button (rendered only when status !== 'paid') never disappears and repeat clicks insert duplicate payment rows. Fix in the frontend by paying total_amount (minus already-received) or add a backend 'settle invoice' endpoint. Sanction/Disburse dialogs: they are declared as bare <Dialog> without open/onOpenChange, so the setSancOpen(false)/setDisbOpen(false) calls inside recordSanction/recordDisbursement cannot close them."
+}

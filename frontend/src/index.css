@@ -1,0 +1,153 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 210 40% 98%;
+        --foreground: 222 47% 11%;
+        --card: 0 0% 100%;
+        --card-foreground: 222 47% 11%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222 47% 11%;
+        --primary: 222 47% 11%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 210 40% 96%;
+        --secondary-foreground: 222 47% 11%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215 16% 47%;
+        --accent: 20 91% 41%;
+        --accent-foreground: 0 0% 100%;
+        --destructive: 0 72% 45%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 214 32% 91%;
+        --input: 214 32% 91%;
+        --ring: 20 91% 41%;
+        --chart-1: 20 91% 41%;
+        --chart-2: 222 47% 11%;
+        --chart-3: 215 25% 47%;
+        --chart-4: 43 74% 52%;
+        --chart-5: 174 58% 39%;
+        --radius: 0.5rem;
+    }
+}
+
+* {
+    border-color: hsl(var(--border));
+}
+
+html, body, #root {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'ss01', 'cv02', 'cv04';
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: 'Outfit', 'IBM Plex Sans', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+}
+
+.mono {
+    font-family: 'IBM Plex Mono', 'ui-monospace', monospace;
+}
+
+.tabular-nums, .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+}
+
+/* Sticky table header */
+.dense-table thead th {
+    position: sticky;
+    top: 0;
+    background: hsl(var(--card));
+    z-index: 5;
+    font-weight: 600;
+    color: hsl(var(--muted-foreground));
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid hsl(var(--border));
+}
+.dense-table th, .dense-table td {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 13px;
+    border-bottom: 1px solid hsl(var(--border));
+}
+.dense-table tbody tr:hover {
+    background: hsl(210 40% 97%);
+}
+.dense-table .num-cell {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Sidebar */
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-radius: 6px;
+    color: hsl(215 25% 60%);
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+}
+.sidebar-item:hover {
+    background: rgba(255,255,255,0.05);
+    color: white;
+}
+.sidebar-item.active {
+    background: hsl(20 91% 41% / 0.15);
+    color: hsl(20 91% 55%);
+}
+.sidebar-section-title {
+    text-transform: uppercase;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    color: hsl(215 20% 45%);
+    padding: 12px 12px 4px;
+    font-weight: 600;
+}
+
+/* Status pills */
+.pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.pill-green { background: hsl(142 76% 94%); color: hsl(142 71% 25%); }
+.pill-amber { background: hsl(45 96% 91%); color: hsl(35 92% 30%); }
+.pill-red   { background: hsl(0 84% 94%); color: hsl(0 74% 35%); }
+.pill-blue  { background: hsl(210 100% 94%); color: hsl(210 82% 32%); }
+.pill-slate { background: hsl(210 40% 94%); color: hsl(215 25% 30%); }
+.pill-terr  { background: hsl(20 91% 94%); color: hsl(20 91% 32%); }
+
+/* Scroll */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: hsl(214 15% 82%); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(214 15% 70%); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Focus */
+:where(input, textarea, select, button):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 1px;
+}

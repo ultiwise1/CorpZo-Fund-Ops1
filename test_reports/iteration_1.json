@@ -1,0 +1,58 @@
+{
+  "summary": "First full QA pass on CorpZo Debt CRM. Backend: 53 pytest cases across auth, dashboard, leads (CRUD+convert), clients 360, cases, sandbox bureau, document upload/version/download, lenders+suggest, applications, lender queries, sanctions, disbursements (auto incentive/CP accrual), mandate lifecycle, invoices+payments, employees/incentives/CP/tasks, reports, audit, search, integrations — all green AFTER fixing a blocking ObjectId serialization defect that made every POST endpoint return 500. Frontend: verified login page, cookie session, dashboard KPIs/funnel/top-lenders/invoice summary, leads list+filters+create+detail (activity log, stage change), global search, cases list + full case working flow (pull sandbox bureau -> upload document -> create application -> record sanction -> record disbursement with stage auto-transitions), client 360 tabs, invoices Mark Paid -> /api/payments, admin users role change persistence, reports, audit, integrations, settings and all 25 sidebar nav items. Test data created during the run was cleaned up (leads=30, clients=10, cases=15 restored).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "ALL POST endpoints (/api/leads, /api/cases, /api/applications, /api/sanctions, /api/disbursements, /api/documents/upload, /api/cases/{uid}/bureau, /api/mandates, /api/invoices, /api/payments, /api/tasks, /api/channel-partners, /api/activities, /api/cases/{uid}/pd, /api/lender-queries)", "issue": "FIXED BY TESTER: handlers did `await db.X.insert_one(doc); return doc` — Motor mutates doc with a BSON ObjectId `_id`, so FastAPI serialization raised ValueError('ObjectId' object is not iterable) => HTTP 500 on every create. Nothing could be created via API or UI. Tester added `doc.pop('_id', None)` after each insert_one and a `_sanitize()` helper in audit() (nested before/after payloads also leaked ObjectId and broke GET /api/audit-logs with 500). Recommend replacing with Pydantic response_model / a shared insert helper so this cannot regress.", "priority": "CRITICAL"},
+      {"endpoint": "POST /api/tasks", "issue": "500 KeyError 'due_date' when due_date is not supplied (server.py create_task uses body['due_date']). Should be optional or return 422.", "priority": "HIGH"},
+      {"endpoint": "POST /api/invoices", "issue": "500 KeyError 'amount' / 'client_uid' when fields are missing. No validation layer.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "ALL POST/PATCH endpoints", "issue": "No Pydantic request models — raw `await request.json()` with body['key'] access. Missing/invalid fields produce 500 instead of 422. models.py exists but is unused by routes."},
+      {"endpoint": "PATCH /api/cases, /api/tasks, /api/mandates, /api/applications", "issue": "PATCH does $set of (nearly) the whole request body; a client can overwrite protected keys (case_uid, client_uid, created_at). Whitelist allowed fields as done in PATCH /api/documents."},
+      {"endpoint": "POST /api/payments", "issue": "Invoice 'paid' status is computed against invoice.amount only; gst_pct/tds_pct are stored but never applied, so a payment of the base amount marks a GST invoice fully paid. No total_amount field is exposed."},
+      {"endpoint": "GET /api/dashboard/summary, GET /api/reports/pipeline", "issue": "Aggregation results are returned with the raw Mongo `_id` key as the stage name; API contract should use `stage`."},
+      {"endpoint": "seed (startup)", "issue": "No documents, bureau_checks, lender_queries or assessments are seeded, and every seeded mandate is created with status='active'. Fresh env therefore shows empty Documents/Bureau/Queries pages and the Mandates 'Advance' lifecycle button never renders."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Mandates page", "issue": "'Advance' button never available because all 15 seeded mandates are status='active' — draft->internal_approval->sent->signed->verified->active flow cannot be exercised in UI (verified via API instead). Needs seeded mandates in earlier statuses.", "selector": "[data-testid=\"mandates-page\"] button:has-text('Advance')", "priority": "MEDIUM"},
+      {"component": "CaseDetail KPI strip", "issue": "'DOC COMPLETENESS' stays 0% even after 3 documents (one marked valid) are attached to the case — metric appears hardcoded/not computed.", "selector": "[data-testid=\"case-detail-page\"]", "priority": "MEDIUM"},
+      {"component": "CaseDetail Documents tab", "issue": "Upload has no category/doc_type picker; every upload is stored as category 'KYC' with doc_type 'Auto', which also defeats the backend version chain (per client+case+doc_type).", "selector": "[data-testid=\"upload-doc-btn\"]", "priority": "MEDIUM"},
+      {"component": "LeadDetail header", "issue": "Sub-title renders dangling separators ('· ,') when company/city are empty.", "selector": "[data-testid=\"lead-detail-page\"]", "priority": "LOW"},
+      {"component": "AdminIntegrations", "issue": "'Configure →' links on every integration row are non-functional placeholders (no navigation/dialog).", "selector": "[data-testid=\"page-body\"] a:has-text('Configure')", "priority": "LOW"},
+      {"component": "Missing data-testid coverage", "issue": "Interactive elements without data-testid: CaseDetail tab triggers, 'New application'/'Apply'/'Sanction'/'Disburse' buttons and their dialog inputs & save buttons, Invoices 'Mark Paid', Mandates 'Advance', AdminUsers role select, Clients/Applications/Sanctions/Disbursements table rows, Reports tables. Tests had to fall back to role/text selectors.", "selector": "various", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Empty pages (Documents, Bureau, Queries)", "issues": ["Render as bare tables with no data and no empty-state illustration/CTA on a fresh environment"]},
+      {"screen": "Reports", "issues": ["Tables paint headers before data resolves with no loading skeleton (looks broken for ~1s)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/backend/tests/conftest.py", "/app/backend/tests/cleanup_test_data.js", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Replace the tester's `doc.pop('_id')` band-aid with Pydantic response models / a shared insert-and-return helper so ObjectId can never leak again",
+    "Add Pydantic request models (models.py is unused) — POST /api/tasks (due_date) and POST /api/invoices (amount, client_uid) currently 500 on missing fields",
+    "Compute invoice total with gst_pct/tds_pct and base payment status on that total; expose total_amount",
+    "Whitelist PATCH-able fields on cases/tasks/mandates/applications",
+    "Seed documents, bureau checks, lender queries and mandates in non-active statuses so Documents/Bureau/Queries/Mandates UI flows are demonstrable",
+    "Implement CaseDetail 'Doc completeness' metric",
+    "Add category/doc_type selection to the case document upload",
+    "Return `stage` instead of `_id` from dashboard funnel and reports/pipeline aggregations",
+    "Add data-testid to CaseDetail tabs, application/sanction/disbursement dialogs+buttons, Invoices Mark Paid, Mandates Advance, AdminUsers role select and remaining table rows"
+  ],
+  "critical_code_review_comments": [
+    "server.py is 1300+ lines with 60+ routes in one file — split into routers (leads, cases, credit, lending, commercials, admin)",
+    "Every handler parses `await request.json()` and indexes required keys directly — no validation, no 4xx errors; models.py (524 lines) is dead code",
+    "audit() persisted raw pre/post documents containing BSON ObjectId, permanently poisoning GET /api/audit-logs (one stored record had to be repaired in Mongo)",
+    "Repeated list/insert boilerplate across handlers; extract a generic CRUD helper (DRY)"
+  ],
+  "updated_files": ["/app/backend/server.py", "/app/backend/tests/backend_test.py", "/app/backend/tests/conftest.py", "/app/backend/tests/cleanup_test_data.js"],
+  "success_rate": {"backend": "100% (53/53 after tester ObjectId fix; 0% of POST endpoints worked before it)", "frontend": "~90% (all pages/nav render and core flows pass; mandate advance flow untestable, doc-completeness metric wrong)"},
+  "seed_data_creation": "Created and then deleted TEST_QA leads/clients/cases/applications/sanctions/disbursements/documents/mandates/invoices/payments via /app/backend/tests/cleanup_test_data.js. Baseline restored: leads=30, clients=10, cases=15. Note documents/lender_queries collections are now empty because they were never seeded by seed.py. One seeded invoice (INV-2026-000002) was moved to 'paid' by the UI Mark-Paid test and EMP-0010 target_monthly was set to 12345678 by the employee PATCH test.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Bearer test_session_supertoken (API) / cookie session_token=test_session_supertoken (browser), user corpzoindia@gmail.com role super_admin. Owner role was temporarily changed to business_head by the AdminUsers test and has been restored to super_admin.",
+  "context_for_next_testing_agent": "Run `pytest /app/backend/tests/backend_test.py` (pytest.ini forces -n 2 --dist loadscope, so cross-class state must go through the session fixtures `ent`/`application` in conftest.py, never module globals). After a run, execute `mongosh test_database /app/backend/tests/cleanup_test_data.js` to purge TEST_QA data. Known API contract quirks: application UIDs are LA-*, invoices use field `amount` (not base_amount), payments require client_uid, tasks require due_date. Not yet retested: mandate status-advance UI (needs non-active seeded mandates), Assessments page write flows, Queries page write flows, mobile/tablet responsiveness, notifications button.",
+  "rca_of_the_issue": "Root cause of the blocking 500s: PyMongo/Motor's insert_one mutates the passed dict by injecting the generated BSON ObjectId under '_id'. Handlers returned that same dict, so FastAPI's jsonable_encoder failed with ValueError(\"'ObjectId' object is not iterable\"). Reproduction: POST /api/leads with a valid body -> 500 (log: fastapi/encoders.py line 330). Mitigation applied: pop '_id' immediately after every insert_one and sanitize audit before/after payloads recursively; one already-persisted audit_logs document containing an ObjectId was repaired so GET /api/audit-logs stopped returning 500."
+}

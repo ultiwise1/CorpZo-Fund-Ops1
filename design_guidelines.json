@@ -1,0 +1,84 @@
+{
+  "theme": "Light theme preferred for dense operations, with dark mode toggle.",
+  "typography": {
+    "headings": {
+      "family": "Outfit, sans-serif",
+      "weights": ["400", "500", "600"],
+      "usage": "Page titles, card headers, section titles. Keep letter-spacing tight."
+    },
+    "body": {
+      "family": "IBM Plex Sans, sans-serif",
+      "weights": ["400", "500", "600"],
+      "usage": "General body text, tabular data, forms. Exceptional for numerical data."
+    },
+    "guidelines": "Use 'tabular-nums' class for all currency and numbers. Hierarchy gap rule: max 2 tailwind steps between heading and subheading. Do not use Inter or Roboto."
+  },
+  "colors": {
+    "background": "#F8FAFC", 
+    "surface": "#FFFFFF",
+    "primary": "#0F172A", 
+    "accent": "#C2410C", 
+    "text": {
+      "primary": "#0F172A",
+      "secondary": "#475569",
+      "muted": "#64748B"
+    },
+    "status": {
+      "success": "#15803D",
+      "warning": "#B45309",
+      "danger": "#B91C1C",
+      "info": "#0369A1"
+    },
+    "guidelines": "Refined graphite base (slate) with a warm terracotta/amber accent. Strictly avoid purple, violet, or teal green (#1B93A4). No bright gradients; use solid colors with 1px borders."
+  },
+  "components": {
+    "tables": "Central to the platform. Must feature sticky headers, dense padding (e.g. py-2 px-3), 'tabular-nums', and right-aligned numeric columns. Include saved views, filters, and pagination.",
+    "cards": "Flat solid surfaces with a subtle 1px border (border-slate-200) and very soft shadow (shadow-sm). No heavy shadows or glassmorphism.",
+    "buttons": "Slightly rounded (rounded-md). Primary buttons use the accent color (Terracotta) or Deep Graphite. Secondary buttons should be outline or ghost.",
+    "forms": "Use Shadcn components. Left-align labels. Inputs should have subtle borders and clear focus states (ring-accent).",
+    "navigation": "Fixed left sidebar. High contrast or subtle grey. Top bar must include breadcrumbs for deep case management views."
+  },
+  "layouts": {
+    "dashboard": "High-density Grid. 4-column layout for top-level KPIs (col-span-1 each). Main charts span 2 or 3 columns. Dense info panels.",
+    "page_structure": "Left sidebar (w-64) + Main content area. Main content: Top navbar (breadcrumbs, global search, user profile) + Page header (Title + Actions) + Content body.",
+    "spacing": "Dense but clear. Use tailwind p-4 or p-6 for containers. Inside tables and dense lists, use p-2 or p-3."
+  },
+  "motion": {
+    "guidelines": "Minimal unnecessary animation. Use micro-interactions for feedback (hover states, focus rings, subtle active states). No bouncy or large layout shifts."
+  },
+  "accessibility": {
+    "guidelines": "APCA contrast compliant. Explicit focus states. Screen reader text for icon-only buttons. Do not use fully transparent backgrounds behind text."
+  },
+  "icons": {
+    "library": "lucide-react",
+    "guidelines": "Use precise, consistent stroke widths (usually 1.5px or 2px). Avoid filled icons unless indicating an active state."
+  },
+  "visual_enhancers": {
+    "guidelines": "Freshness indicators (e.g., 'Last synced 2 mins ago'). Use Indian currency formatting (₹1,25,00,000 / ₹1.25 Cr) with proper grouping. Status badges with soft background and dark text."
+  },
+  "image_urls": [
+    {
+      "url": "https://images.unsplash.com/photo-1479293581560-aee98bb24f7f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBnbGFzcyUyMGJ1aWxkaW5nJTIwYWJzdHJhY3QlMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzg2NjE5OTA0fDA&ixlib=rb-4.1.0&q=85",
+      "category": "login_background",
+      "description": "Gray glass building facade, suitable for a professional corporate login page background"
+    }
+  ],
+  "instructions_to_main_agent": [
+    "Build a desktop-first enterprise operations platform. Do not make it look like a consumer app.",
+    "Format all currency values in Indian format (e.g., ₹1.25 Cr, ₹75,000).",
+    "Use a left navigation sidebar. Implement breadcrumbs and a sticky top header.",
+    "Tables must be dense, readable, with sticky headers, filters, and pagination.",
+    "Use 'IBM Plex Sans' for tabular data and numbers; it is highly legible.",
+    "Strictly avoid gradients; use refined flat colors, 1px borders, and very subtle shadows.",
+    "Ensure 'tabular-nums' utility is applied to all numerical data.",
+    "All interactive and key informational elements MUST include a 'data-testid' attribute.",
+    "You have .js files not .tsx files, implement logic in standard JavaScript + React."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "Do not apply universal transition (e.g., transition: all). Add transitions for specific interactive elements only.",
+    "Do not center align the app container. Keep a normal document flow.",
+    "Use pre-existing components from src/components/ui where possible. Shadcn UI heavily utilized.",
+    "Use 'sonner' for toast notifications.",
+    "Create depth through layered design elements with z-index hierarchy, but keep styling flat and professional."
+  ]
+}
