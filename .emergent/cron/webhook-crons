@@ -1,8 +1,11 @@
 # Managed by Emergent webhook-cron (pod-local syscron). DO NOT EDIT.
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-JOB_ID=credit-ops-5
+JOB_ID=4edf415f-c952-4c55-a668-d0de0d50e1c6
 WEBHOOK_ENV_FILE=/app/backend/.env
 CRON_API_URL=https://ea.int.apis.emergentagent.com
 
-* * * * * root JOB_ID=credit-ops-5 CRON_API_URL=https://ea.int.apis.emergentagent.com /bin/sh /app/.emergent/cron/watch_crons.sh >> /var/log/webhook-cron.log 2>&1
+*/15 * * * * root CRON_NAME=hot-leads-24h METHOD=POST ENDPOINT_URL_B64=aHR0cHM6Ly81ZTMwODJlNi02N2MzLTQxNzctOTgxOC1iODJiMDkxODgyNjIucHJldmlldy5lbWVyZ2VudGFnZW50LmNvbS9hcGkvY3Jvbi9ob3QtbGVhZHM= /bin/sh /app/.emergent/cron/dispatch_webhook.sh >> /var/log/webhook-cron.log 2>&1
+0 * * * * root CRON_NAME=query-sla-check METHOD=POST ENDPOINT_URL_B64=aHR0cHM6Ly81ZTMwODJlNi02N2MzLTQxNzctOTgxOC1iODJiMDkxODgyNjIucHJldmlldy5lbWVyZ2VudGFnZW50LmNvbS9hcGkvY3Jvbi9xdWVyeS1zbGE= /bin/sh /app/.emergent/cron/dispatch_webhook.sh >> /var/log/webhook-cron.log 2>&1
+0 4 1 * * root CRON_NAME=monthly-payout-batch METHOD=POST ENDPOINT_URL_B64=aHR0cHM6Ly81ZTMwODJlNi02N2MzLTQxNzctOTgxOC1iODJiMDkxODgyNjIucHJldmlldy5lbWVyZ2VudGFnZW50LmNvbS9hcGkvY3Jvbi9wYXlvdXQtYmF0Y2g= /bin/sh /app/.emergent/cron/dispatch_webhook.sh >> /var/log/webhook-cron.log 2>&1
+* * * * * root JOB_ID=4edf415f-c952-4c55-a668-d0de0d50e1c6 CRON_API_URL=https://ea.int.apis.emergentagent.com /bin/sh /app/.emergent/cron/watch_crons.sh >> /var/log/webhook-cron.log 2>&1

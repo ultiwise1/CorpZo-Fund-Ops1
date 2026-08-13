@@ -740,13 +740,34 @@ async def save_assessment(case_uid: str, request: Request):
     body = await request.json()
     c = await db.cases.find_one({"case_uid": case_uid}, {"_id": 0})
     if not c: raise HTTPException(404, "Case not found")
+
+    # Validate flags shape — reject anything that isn't a dict with allowed level + non-empty title.
+    raw_flags = body.get("flags", []) or []
+    if not isinstance(raw_flags, list):
+        raise HTTPException(422, "flags must be a list")
+    cleaned_flags = []
+    for i, fl in enumerate(raw_flags):
+        if not isinstance(fl, dict):
+            raise HTTPException(422, f"flags[{i}] must be an object with level & title")
+        lvl = str(fl.get("level", "")).lower()
+        title = str(fl.get("title", "")).strip()
+        if lvl not in ("green", "amber", "red"):
+            raise HTTPException(422, f"flags[{i}].level must be green|amber|red")
+        if not title:
+            raise HTTPException(422, f"flags[{i}].title required")
+        cleaned_flags.append({
+            "level": lvl,
+            "title": title[:240],
+            "id": fl.get("id") or f"fl_{uuid.uuid4().hex[:8]}",
+        })
+
     doc = {
         "assessment_id": f"ass_{uuid.uuid4().hex[:12]}",
         "case_uid": case_uid, "client_uid": c["client_uid"],
         "overview": body.get("overview", {}), "financials": body.get("financials", {}),
         "banking": body.get("banking", {}), "ratios": body.get("ratios", {}),
         "positives": body.get("positives", []), "concerns": body.get("concerns", []),
-        "flags": body.get("flags", []),
+        "flags": cleaned_flags,
         "indicative_eligibility": body.get("indicative_eligibility", 0),
         "analyst_comments": body.get("analyst_comments", ""),
         "recommendation": body.get("recommendation", ""),
@@ -2294,6 +2315,332 @@ async def mark_read(notification_id: str, request: Request):
     user = await require_user(request)
     await db.notifications.update_one({"notification_id": notification_id, "user_id": user["user_id"]}, {"$set": {"read": True}})
     return {"ok": True}
+
+
+# ============== PARTNER CRM v2 ==============
+@api.patch("/channel-partners/{partner_uid}")
+async def update_channel_partner(partner_uid: str, request: Request):
+    user = await require_user(request)
+    if user["role"] not in ("super_admin", "business_head", "channel_manager", "finance"):
+        raise HTTPException(403, "Not allowed")
+    body = await request.json()
+    before = await db.channel_partners.find_one({"partner_uid": partner_uid}, {"_id": 0})
+    if not before:
+        raise HTTPException(404, "Partner not found")
+    allowed = {"name", "entity_name", "pan", "gst", "status", "kyc_status", "agreement_signed",
+               "products", "geography", "channel_manager_uid", "commission_structure",
+               "mobile", "email", "city", "state", "bank_account",
+               "monthly_target", "notes"}
+    updates = {k: v for k, v in body.items() if k in allowed}
+    if updates:
+        await db.channel_partners.update_one({"partner_uid": partner_uid}, {"$set": updates})
+    after = await db.channel_partners.find_one({"partner_uid": partner_uid}, {"_id": 0})
+    await audit(user, "channel_partner", partner_uid, "updated", before, after)
+    return after
+
+
+@api.get("/partners/performance")
+async def partner_performance(request: Request):
+    """Aggregate KPIs, MTD numbers, per-partner rollup and 6-month trend."""
+    user = await require_user(request)
+    if user["role"] not in ("super_admin", "business_head", "channel_manager", "finance"):
+        raise HTTPException(403, "Not allowed")
+
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start_iso = month_start.isoformat()
+    six_start = (month_start - timedelta(days=185)).replace(day=1).isoformat()
+
+    partners = await db.channel_partners.find({}, {"_id": 0}).to_list(1000)
+    partner_map = {p["partner_uid"]: p for p in partners}
+
+    # Leads per partner
+    leads = await db.leads.find({"channel_partner_uid": {"$ne": None}}, {"_id": 0}).to_list(5000)
+    lead_count = {}
+    for l in leads:
+        pu = l.get("channel_partner_uid")
+        if pu:
+            lead_count[pu] = lead_count.get(pu, 0) + 1
+
+    # Cases per partner
+    cases = await db.cases.find({"channel_partner_uid": {"$ne": None}}, {"_id": 0}).to_list(5000)
+    case_by_partner = {}
+    for c in cases:
+        pu = c.get("channel_partner_uid")
+        if pu:
+            case_by_partner.setdefault(pu, []).append(c)
+
+    # Disbursements — need to join to case → partner
+    case_partner = {c["case_uid"]: c.get("channel_partner_uid") for c in cases}
+    disbursements = await db.disbursements.find(
+        {"case_uid": {"$in": list(case_partner.keys())}}, {"_id": 0}
+    ).to_list(5000)
+
+    # Commissions
+    commissions = await db.cp_commissions.find({}, {"_id": 0}).to_list(5000)
+
+    # per-partner stats
+    rows = []
+    mtd_disb_total = 0
+    mtd_comm_total = 0
+    overdue_payout_total = 0
+    active_partners = 0
+
+    # Precompute monthly trend buckets per partner (last 6 months incl current)
+    trend_labels = []
+    _p = month_start
+    for _ in range(6):
+        trend_labels.append(_p.strftime("%Y-%m"))
+        _prev = _p.replace(day=1) - timedelta(days=1)
+        _p = _prev.replace(day=1)
+    trend_labels = list(reversed(trend_labels))
+
+    disb_trend_by_partner: Dict[str, Dict[str, float]] = {}
+    for d in disbursements:
+        pu = case_partner.get(d.get("case_uid"))
+        if not pu:
+            continue
+        dt = (d.get("disbursement_date") or d.get("created_at") or "")[:7]
+        if dt in trend_labels:
+            disb_trend_by_partner.setdefault(pu, {}).setdefault(dt, 0.0)
+            disb_trend_by_partner[pu][dt] += float(d.get("amount", 0) or 0)
+
+    for p in partners:
+        pu = p["partner_uid"]
+        if p.get("status") == "active":
+            active_partners += 1
+
+        p_disbs = [d for d in disbursements if case_partner.get(d.get("case_uid")) == pu]
+        p_disbursed_total = sum(float(x.get("amount", 0) or 0) for x in p_disbs)
+        p_disbursed_mtd = sum(
+            float(x.get("amount", 0) or 0) for x in p_disbs
+            if (x.get("disbursement_date") or x.get("created_at") or "") >= month_start_iso
+        )
+
+        p_comms = [c for c in commissions if c.get("partner_uid") == pu]
+        p_comm_total = sum(float(x.get("commission_amount", 0) or 0) for x in p_comms)
+        p_comm_mtd = sum(
+            float(x.get("commission_amount", 0) or 0) for x in p_comms
+            if (x.get("created_at") or "") >= month_start_iso
+        )
+        p_comm_payable = sum(
+            float(x.get("payable_amount", 0) or 0) for x in p_comms
+            if x.get("status") in ("accrued", "approved") and not x.get("batch_id")
+        )
+        p_comm_overdue = sum(
+            float(x.get("payable_amount", 0) or 0) for x in p_comms
+            if x.get("status") == "accrued" and (x.get("created_at") or "") < (now - timedelta(days=45)).isoformat()
+            and not x.get("batch_id")
+        )
+
+        target = float(p.get("monthly_target", 0) or 0)
+        attainment_pct = round((p_disbursed_mtd / target) * 100, 1) if target > 0 else None
+
+        # Trend series aligned to labels
+        trend = disb_trend_by_partner.get(pu, {})
+        series = [round(trend.get(lbl, 0.0), 2) for lbl in trend_labels]
+
+        rows.append({
+            "partner_uid": pu,
+            "channel_code": p.get("channel_code", ""),
+            "name": p.get("name", ""),
+            "status": p.get("status", ""),
+            "city": p.get("city", ""),
+            "mobile": p.get("mobile", ""),
+            "email": p.get("email", ""),
+            "products": p.get("products", []),
+            "monthly_target": target,
+            "leads": lead_count.get(pu, 0),
+            "cases": len(case_by_partner.get(pu, [])),
+            "disbursed_total": round(p_disbursed_total, 2),
+            "disbursed_mtd": round(p_disbursed_mtd, 2),
+            "commission_total": round(p_comm_total, 2),
+            "commission_mtd": round(p_comm_mtd, 2),
+            "commission_payable": round(p_comm_payable, 2),
+            "commission_overdue": round(p_comm_overdue, 2),
+            "attainment_pct": attainment_pct,
+            "trend_labels": trend_labels,
+            "trend_disbursed": series,
+        })
+
+        mtd_disb_total += p_disbursed_mtd
+        mtd_comm_total += p_comm_mtd
+        overdue_payout_total += p_comm_overdue
+
+    rows.sort(key=lambda r: r["disbursed_mtd"], reverse=True)
+
+    return {
+        "kpis": {
+            "active_partners": active_partners,
+            "total_partners": len(partners),
+            "mtd_disbursement": round(mtd_disb_total, 2),
+            "mtd_commission_accrued": round(mtd_comm_total, 2),
+            "overdue_payouts": round(overdue_payout_total, 2),
+        },
+        "period": month_start.strftime("%b %Y"),
+        "rows": rows,
+    }
+
+
+# ============== CAM PDF EXPORT ==============
+@api.get("/cases/{case_uid}/cam.pdf")
+async def cam_pdf(case_uid: str, request: Request):
+    await require_user(request)
+    c = await db.cases.find_one({"case_uid": case_uid}, {"_id": 0})
+    if not c:
+        raise HTTPException(404, "Case not found")
+    client_doc = await db.clients.find_one({"client_uid": c["client_uid"]}, {"_id": 0}) or {}
+    a = await db.assessments.find_one({"case_uid": case_uid}, {"_id": 0}) or {}
+    bureau = await db.bureau_checks.find({"case_uid": case_uid}, {"_id": 0}).sort("checked_at", -1).to_list(1)
+    latest_bureau = bureau[0] if bureau else {}
+
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+
+    buf = io.BytesIO()
+    pdf = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=16*mm, rightMargin=16*mm,
+                            topMargin=16*mm, bottomMargin=16*mm)
+    ss = getSampleStyleSheet()
+    ink = colors.HexColor("#0F1B2D")
+    brand = colors.HexColor("#0B1F3A")
+    coral = colors.HexColor("#FF6B4E")
+    gold = colors.HexColor("#D89B00")
+
+    title = ParagraphStyle("t", parent=ss["Heading1"], fontSize=20, textColor=ink, spaceAfter=2)
+    sub = ParagraphStyle("s", parent=ss["Normal"], fontSize=10, textColor=colors.grey, spaceAfter=10)
+    h2 = ParagraphStyle("h2", parent=ss["Heading2"], fontSize=13, textColor=brand, spaceBefore=10, spaceAfter=6)
+    p = ParagraphStyle("p", parent=ss["Normal"], fontSize=10, textColor=ink, spaceAfter=4)
+
+    def _fmt_inr(x):
+        try:
+            n = float(x or 0)
+        except (ValueError, TypeError):
+            return "—"
+        if n >= 1_00_00_000: return f"₹{n/1_00_00_000:.2f} Cr"
+        if n >= 1_00_000: return f"₹{n/1_00_000:.2f} L"
+        return f"₹{n:,.0f}"
+
+    story = [
+        Paragraph("Credit Assessment Memo (CAM)", title),
+        Paragraph(f"Case {c['case_uid']} · Client {c['client_uid']} · Prepared {a.get('prepared_at', '')[:10] or datetime.now(timezone.utc).strftime('%Y-%m-%d')}", sub),
+        Paragraph("Snapshot", h2),
+    ]
+
+    snap = [
+        ["Client", (client_doc.get("company_name") or client_doc.get("name") or "—")[:40],
+         "PAN", client_doc.get("pan", "—")],
+        ["Product", str(c.get("product", "—")).replace("_", " ").title(),
+         "Stage", str(c.get("stage", "—")).replace("_", " ").title()],
+        ["Requested", _fmt_inr(c.get("requirement")),
+         "Doc %", f"{c.get('documentation_pct', 0)}%"],
+        ["Bureau Score", latest_bureau.get("score", "—"),
+         "Bureau Bureau", latest_bureau.get("bureau", "—")],
+    ]
+    t = Table(snap, colWidths=[26*mm, 60*mm, 26*mm, 60*mm])
+    t.setStyle(TableStyle([
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+        ("TEXTCOLOR", (0, 0), (0, -1), brand),
+        ("TEXTCOLOR", (2, 0), (2, -1), brand),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    story.append(t)
+
+    def _kv_table(label, section):
+        if not section:
+            return None
+        story.append(Paragraph(label, h2))
+        data = [["Field", "Value"]]
+        for k, v in section.items():
+            if v in (None, "", 0):
+                continue
+            data.append([str(k).replace("_", " ").title(), str(v)])
+        if len(data) == 1:
+            return None
+        tab = Table(data, colWidths=[70*mm, 100*mm])
+        tab.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), brand),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.whitesmoke, colors.white]),
+        ]))
+        story.append(tab)
+        return tab
+
+    _kv_table("Business overview", a.get("overview"))
+    _kv_table("Financial performance", a.get("financials"))
+    _kv_table("Banking analysis", a.get("banking"))
+    _kv_table("Key ratios", a.get("ratios"))
+
+    positives = a.get("positives") or []
+    concerns = a.get("concerns") or []
+    if positives or concerns:
+        story.append(Paragraph("Positives & Concerns", h2))
+        pc = [["Positives", "Concerns"], [
+            "\n".join(f"• {x}" for x in positives) or "—",
+            "\n".join(f"• {x}" for x in concerns) or "—",
+        ]]
+        tpc = Table(pc, colWidths=[85*mm, 85*mm])
+        tpc.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (0, 0), colors.HexColor("#E6F5EE")),
+            ("BACKGROUND", (1, 0), (1, 0), colors.HexColor("#FDEDEA")),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(tpc)
+
+    flags = a.get("flags") or []
+    if flags:
+        story.append(Paragraph("Credit flags", h2))
+        f_rows = [["Level", "Title"]]
+        for fl in flags:
+            f_rows.append([str(fl.get("level", "")).upper(), str(fl.get("title", ""))])
+        tf = Table(f_rows, colWidths=[25*mm, 145*mm])
+        style = [
+            ("BACKGROUND", (0, 0), (-1, 0), brand),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.lightgrey),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ]
+        for i, fl in enumerate(flags, start=1):
+            lvl = str(fl.get("level", ""))
+            bg = {"green": colors.HexColor("#DCF5E6"), "amber": colors.HexColor("#FDF0D5"),
+                  "red": colors.HexColor("#FDE1DE")}.get(lvl, colors.white)
+            style.append(("BACKGROUND", (0, i), (0, i), bg))
+        tf.setStyle(TableStyle(style))
+        story.append(tf)
+
+    story.append(Paragraph("Recommendation", h2))
+    rec = a.get("recommendation") or "—"
+    story.append(Paragraph(f"<b>Indicative eligibility:</b> {_fmt_inr(a.get('indicative_eligibility'))}", p))
+    story.append(Paragraph(f"<b>Recommendation:</b> {rec.replace('_', ' ').title()}", p))
+    if a.get("analyst_comments"):
+        story.append(Paragraph("<b>Analyst comments</b>", p))
+        story.append(Paragraph(a.get("analyst_comments").replace("\n", "<br/>"), p))
+
+    story.append(Spacer(1, 10*mm))
+    story.append(Paragraph(f"<font color='#94A3B8'>Prepared by {a.get('prepared_by', '—')} · Generated {datetime.now(timezone.utc).strftime('%d %b %Y %H:%M UTC')}</font>", sub))
+
+    pdf.build(story)
+    buf.seek(0)
+    return FastResponse(
+        content=buf.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="CAM-{case_uid}.pdf"'},
+    )
 
 
 app.include_router(api)

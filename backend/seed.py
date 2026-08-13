@@ -556,3 +556,75 @@ async def seed_supplemental(db):
         if queries:
             await db.lender_queries.insert_many(queries)
             log.info(f"Seeded {len(queries)} lender queries")
+
+    # Ensure at least a handful of partners have current-month activity so the
+    # Partner CRM v2 dashboard doesn't read as empty on a fresh env.
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    partner_cases = await db.cases.find(
+        {"channel_partner_uid": {"$ne": None}, "sanctioned_amount": {"$gt": 0}},
+        {"_id": 0}
+    ).to_list(20)
+    partner_case_uids = [c["case_uid"] for c in partner_cases]
+    # Count MTD partner-linked disbursements (not any disbursement).
+    partner_mtd = await db.disbursements.count_documents({
+        "case_uid": {"$in": partner_case_uids},
+        "disbursement_date": {"$gte": _iso(month_start)},
+    }) if partner_case_uids else 0
+
+    if partner_mtd < 3 and partner_cases:
+        random.shuffle(partner_cases)
+        seeded = 0
+        month_targets = {}
+        for c in partner_cases:
+            pu = c["channel_partner_uid"]
+            if pu in month_targets:
+                continue
+            month_targets[pu] = True
+            amt = float(min(c.get("sanctioned_amount") or 0, c.get("requirement") or 0) or 5_000_000)
+            # a comfortable target: 3-6x this month's disbursement
+            monthly_target = round(amt * random.choice([3, 4, 5, 6]), -5)
+            # Backfill target if missing / zero
+            await db.channel_partners.update_one(
+                {"partner_uid": pu, "$or": [
+                    {"monthly_target": {"$exists": False}},
+                    {"monthly_target": 0},
+                    {"monthly_target": None},
+                ]},
+                {"$set": {"monthly_target": monthly_target}},
+            )
+            # Idempotency guard: skip if we already inserted a seed_mtd disbursement for this partner
+            already = await db.disbursements.count_documents(
+                {"case_uid": c["case_uid"], "notes": "seed_mtd"}
+            )
+            if already > 0:
+                continue
+
+            d_uid = f"DB-MTD-{c['case_uid'][-4:]}"
+            disb_amt = round(amt * random.uniform(0.2, 0.5), -3)
+            disb_date = _iso(month_start + timedelta(days=random.randint(1, min(10, now.day))))
+            await db.disbursements.insert_one({
+                "disbursement_uid": d_uid,
+                "sanction_uid": f"SN-SEED-{c['case_uid'][-4:]}",
+                "case_uid": c["case_uid"],
+                "lender_uid": c.get("preferred_lender") or "L-HDFC",
+                "amount": disb_amt,
+                "disbursement_date": disb_date,
+                "utr_number": f"UTR{random.randint(10**11, 10**12 - 1)}",
+                "tranche_no": 1,
+                "notes": "seed_mtd",
+                "created_at": disb_date,
+            })
+            await db.cp_commissions.insert_one({
+                "commission_id": f"cpc_mtd_{c['case_uid'][-6:]}",
+                "partner_uid": pu, "case_uid": c["case_uid"],
+                "disbursement_uid": d_uid, "disbursement_amount": disb_amt,
+                "commission_pct": 1.0, "commission_amount": disb_amt * 0.01,
+                "tds_amount": disb_amt * 0.001, "payable_amount": disb_amt * 0.009,
+                "status": "accrued", "paid_on": None,
+                "created_at": disb_date,
+            })
+            seeded += 1
+            if seeded >= 3:
+                break
+        if seeded:
+            log.info(f"Seeded {seeded} current-month partner disbursements + commissions")
