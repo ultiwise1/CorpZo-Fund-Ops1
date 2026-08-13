@@ -6,6 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { ArrowRight, ShieldCheck } from "lucide-react";
+import ProductArt from "@/components/ProductArt";
+
+const PRODUCT_TINTS = {
+  "home-loan":{tint:"#E0F5EC",accent:"#16A981"}, "business-loan":{tint:"#FFF3D6",accent:"#D89B00"},
+  "lap":{tint:"#E4F1FB",accent:"#3287D6"}, "personal-loan":{tint:"#FCE7EA",accent:"#E24A6B"},
+  "working-capital":{tint:"#FFEFDA",accent:"#E37800"}, "cc-od":{tint:"#F2E9FE",accent:"#8B5CF6"},
+  "term-loan":{tint:"#DFF5F1",accent:"#0F8B7A"}, "equipment-finance":{tint:"#E9F1FF",accent:"#3357C1"},
+  "project-finance":{tint:"#FBE9DA",accent:"#D25E1F"}, "construction-finance":{tint:"#FDECD8",accent:"#C05621"},
+  "supply-chain-finance":{tint:"#E2F2FF",accent:"#1D8FE1"}, "invoice-discounting":{tint:"#F7E5F1",accent:"#B23B8A"},
+  "loan-against-securities":{tint:"#FFF7C2",accent:"#B58900"}, "structured-finance":{tint:"#E7EDE9",accent:"#0F3D2E"},
+  "private-credit":{tint:"#E1EDFD",accent:"#4C6FE1"},
+};
+const tintFor = (slug) => PRODUCT_TINTS[slug] || {tint:"#F1F7F3", accent:"#1F5B4A"};
 
 function emi(P, r, n) {
   const R = r / 12 / 100;
@@ -41,9 +54,7 @@ export default function ProductDetail() {
       <div className="max-w-7xl mx-auto px-6 pt-10">
         <div className="grid lg:grid-cols-5 gap-8">
           <div className="lg:col-span-3">
-            <div className="aspect-[16/8] rounded-2xl overflow-hidden bg-slate-100 mb-6">
-              <img src={p.hero_image} alt="" className="w-full h-full object-cover"/>
-            </div>
+            <ProductArt slug={p.slug} tint={tintFor(p.slug).tint} accent={tintFor(p.slug).accent} size="lg" className="rounded-2xl mb-6"/>
             <div className="text-xs uppercase tracking-widest text-[#8A6600] font-semibold">Product</div>
             <h1 className="font-display text-4xl font-semibold text-[#0F3D2E] mt-1">{p.title}</h1>
             <p className="text-[#0F3D2E]/70 mt-2 text-lg">{p.tagline}</p>

@@ -108,3 +108,9 @@ Lead • Client • Case • Employee • ChannelPartner • Document • PDForm
 - **PublicLayout** header/footer restyled with brand green + gold links; sticky-nav with new logo lockup.
 - **Customer dashboard + apply + product detail** re-themed to the new palette (backgrounds `#FAFAF7`, borders `#0F3D2E/10`, CTAs `#1F5B4A`).
 - **Internal CRM sidebar** dark-green shell with gold accent left-border on active items; pill classes updated.
+
+## Iteration 4 (Feb 2026) — Illustrations, Global Search, Live Rates
+- **Custom product illustrations** — new `ProductArt.jsx` renders a unique on-brand SVG scene per debt product (house, growth chart, building+lock, coin cycle, candlestick, factory, crane, rocket-style, etc.) with per-slug tint + accent colour. Wired into LandingPage grid, ProductsPage catalogue and ProductDetail hero.
+- **Global CRM search 2.0** — `/api/search` now covers Leads, Clients, Cases, Applications, **Sanctions, Disbursements, Invoices, Tasks** and Partners. Backend added regex escaping (safe PAN/GSTIN chars) and reverse-lookup of cases via matched clients (PAN/GSTIN/name). Frontend TopBar restyled to the venturaz palette with grouped results, colored group dots, ↑↓ / Enter keyboard navigation, `⌘K` / `Ctrl+K` shortcut, and a helpful empty-state.
+- **Live rates on hero chips** — landing-page product chips now display `rate_from` in a gold pill next to the product name, so visitors see the freshest rate without clicking.
+

@@ -9,7 +9,7 @@ from bson import ObjectId
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, List, Any, Dict
-import os, uuid, logging, io, asyncio
+import os, uuid, logging, io, asyncio, re
 
 from auth import fetch_session_data, set_session_cookie, clear_session_cookie, get_current_user
 from storage import init_storage, put_object, get_object, APP_NAME
@@ -1326,16 +1326,32 @@ async def list_integrations(request: Request):
 @api.get("/search")
 async def global_search(request: Request, q: str = Query(..., min_length=1)):
     await require_user(request)
-    regex = {"$regex": q, "$options": "i"}
+    # escape regex special chars so PAN/GSTIN with dots etc match literally
+    q_esc = re.escape(q.strip())
+    regex = {"$regex": q_esc, "$options": "i"}
     leads = await db.leads.find({"$or": [{"lead_uid": regex}, {"name": regex}, {"company": regex},
-                                          {"mobile": regex}, {"email": regex}]}, {"_id": 0}).limit(10).to_list(10)
+                                          {"mobile": regex}, {"email": regex}, {"pan": regex}, {"gstin": regex}]},
+                                {"_id": 0}).limit(8).to_list(8)
     clients = await db.clients.find({"$or": [{"client_uid": regex}, {"name": regex}, {"company": regex},
                                               {"mobile": regex}, {"email": regex}, {"pan": regex},
-                                              {"gstin": regex}, {"cin": regex}]}, {"_id": 0}).limit(10).to_list(10)
-    cases = await db.cases.find({"case_uid": regex}, {"_id": 0}).limit(10).to_list(10)
-    apps = await db.applications.find({"$or": [{"application_uid": regex}, {"lender_login_no": regex}]}, {"_id": 0}).limit(10).to_list(10)
-    partners = await db.channel_partners.find({"$or": [{"channel_code": regex}, {"name": regex}]}, {"_id": 0}).limit(10).to_list(10)
-    return {"leads": leads, "clients": clients, "cases": cases, "applications": apps, "partners": partners}
+                                              {"gstin": regex}, {"cin": regex}]}, {"_id": 0}).limit(8).to_list(8)
+    # cases: by uid AND by owning-client PAN/GSTIN/name via lookup
+    case_or = [{"case_uid": regex}, {"purpose": regex}]
+    matched_clients = await db.clients.find({"$or": [{"pan": regex}, {"gstin": regex}, {"name": regex}, {"company": regex}]}, {"client_uid": 1}).limit(20).to_list(20)
+    if matched_clients:
+        case_or.append({"client_uid": {"$in": [c["client_uid"] for c in matched_clients]}})
+    cases = await db.cases.find({"$or": case_or}, {"_id": 0}).limit(8).to_list(8)
+    apps = await db.applications.find({"$or": [{"application_uid": regex}, {"lender_login_no": regex}, {"case_uid": regex}]}, {"_id": 0}).limit(6).to_list(6)
+    sanctions = await db.sanctions.find({"$or": [{"sanction_uid": regex}, {"case_uid": regex}]}, {"_id": 0}).limit(5).to_list(5)
+    disbursements = await db.disbursements.find({"$or": [{"disbursement_uid": regex}, {"case_uid": regex}]}, {"_id": 0}).limit(5).to_list(5)
+    invoices = await db.invoices.find({"$or": [{"invoice_uid": regex}, {"case_uid": regex}, {"client_uid": regex}]}, {"_id": 0}).limit(5).to_list(5)
+    tasks = await db.tasks.find({"$or": [{"task_uid": regex}, {"title": regex}]}, {"_id": 0}).limit(5).to_list(5)
+    partners = await db.channel_partners.find({"$or": [{"channel_code": regex}, {"name": regex}, {"partner_uid": regex}, {"contact_mobile": regex}, {"contact_email": regex}]}, {"_id": 0}).limit(6).to_list(6)
+    return {
+        "leads": leads, "clients": clients, "cases": cases,
+        "applications": apps, "sanctions": sanctions, "disbursements": disbursements,
+        "invoices": invoices, "tasks": tasks, "partners": partners,
+    }
 
 
 # ============== REPORTS ==============

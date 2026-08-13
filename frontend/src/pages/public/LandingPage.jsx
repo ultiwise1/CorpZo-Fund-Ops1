@@ -6,28 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   ArrowRight, ShieldCheck, Zap, Award, Users, Star,
-  Home, Briefcase, User, Building2, Car, GraduationCap, Landmark, Coins,
-  Percent, Clock, CheckCircle2, TrendingUp, PhoneCall
+  Home, Briefcase, User, Building2, Factory, GraduationCap, Landmark, Coins,
+  Percent, Clock, CheckCircle2, TrendingUp, PhoneCall, Truck, Cog, Layers, Gem
 } from "lucide-react";
 import { toast } from "sonner";
+import ProductArt from "@/components/ProductArt";
 
-/** urban-money style tinted background per product slug */
+/** urban-money style tinted background per backend product slug */
 const PRODUCT_STYLE = {
-  "home-loan":         { icon: Home,           tint: "#E0F5EC", accent: "#16A981" },
-  "business-loan":     { icon: Briefcase,      tint: "#FFF3D6", accent: "#D89B00" },
-  "lap":               { icon: Building2,      tint: "#E4F1FB", accent: "#3287D6" },
-  "personal-loan":     { icon: User,           tint: "#FCE7EA", accent: "#E24A6B" },
-  "car-loan":          { icon: Car,            tint: "#EFE9FD", accent: "#7A5AF8" },
-  "education-loan":    { icon: GraduationCap,  tint: "#E1F1EE", accent: "#0E7A5F" },
-  "working-capital":   { icon: Coins,          tint: "#FFEFDA", accent: "#E37800" },
-  "gold-loan":         { icon: Coins,          tint: "#FFF7C2", accent: "#B58900" },
-  "term-loan":         { icon: TrendingUp,     tint: "#DFF5F1", accent: "#0F8B7A" },
-  "od-cc":             { icon: Percent,        tint: "#F2E9FE", accent: "#8B5CF6" },
-  "invoice-financing": { icon: TrendingUp,     tint: "#E2F2FF", accent: "#1D8FE1" },
-  "construction-loan": { icon: Building2,      tint: "#FBE9DA", accent: "#D25E1F" },
-  "commercial-vehicle":{ icon: Car,            tint: "#E9F1FF", accent: "#3357C1" },
-  "startup-loan":      { icon: Zap,            tint: "#F7E5F1", accent: "#B23B8A" },
-  "structured-debt":   { icon: Landmark,       tint: "#E7EDE9", accent: "#0F3D2E" },
+  "home-loan":              { icon: Home,          tint: "#E0F5EC", accent: "#16A981" },
+  "business-loan":          { icon: Briefcase,     tint: "#FFF3D6", accent: "#D89B00" },
+  "lap":                    { icon: Building2,     tint: "#E4F1FB", accent: "#3287D6" },
+  "personal-loan":          { icon: User,          tint: "#FCE7EA", accent: "#E24A6B" },
+  "working-capital":        { icon: Coins,         tint: "#FFEFDA", accent: "#E37800" },
+  "cc-od":                  { icon: Percent,       tint: "#F2E9FE", accent: "#8B5CF6" },
+  "term-loan":              { icon: TrendingUp,    tint: "#DFF5F1", accent: "#0F8B7A" },
+  "equipment-finance":      { icon: Cog,           tint: "#E9F1FF", accent: "#3357C1" },
+  "project-finance":        { icon: Factory,       tint: "#FBE9DA", accent: "#D25E1F" },
+  "construction-finance":   { icon: Building2,     tint: "#FDECD8", accent: "#C05621" },
+  "supply-chain-finance":   { icon: Truck,         tint: "#E2F2FF", accent: "#1D8FE1" },
+  "invoice-discounting":    { icon: Layers,        tint: "#F7E5F1", accent: "#B23B8A" },
+  "loan-against-securities":{ icon: TrendingUp,    tint: "#FFF7C2", accent: "#B58900" },
+  "structured-finance":     { icon: Landmark,      tint: "#E7EDE9", accent: "#0F3D2E" },
+  "private-credit":         { icon: Gem,           tint: "#E1EDFD", accent: "#4C6FE1" },
 };
 const styleFor = (slug) => PRODUCT_STYLE[slug] || { icon: Coins, tint: "#F1F4F1", accent: "#1F5B4A" };
 
@@ -101,21 +102,22 @@ export default function LandingPage() {
               and let CorpZo's credit team drive your case end-to-end. <span className="text-[#FFD84D] font-semibold">Zero cost until sanction.</span>
             </p>
 
-            {/* Product chips */}
+            {/* Product chips — with live rate_from */}
             <div className="mt-8">
-              <div className="text-[10.5px] uppercase tracking-widest text-white/50 mb-2">Popular products</div>
+              <div className="text-[10.5px] uppercase tracking-widest text-white/50 mb-2">Popular products · rates from</div>
               <div className="flex flex-wrap gap-2" data-testid="hero-product-chips">
                 {(products.slice(0,8)).map(p => {
                   const s = styleFor(p.slug);
                   const Icon = s.icon;
                   return (
                     <button key={p.slug} onClick={()=>nav(`/product/${p.slug}`)}
-                      className="group inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-white/8 hover:bg-white/15 border border-white/15 hover:border-[#FFD84D]/60 text-sm text-white transition"
+                      className="group inline-flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-white/8 hover:bg-white/15 border border-white/15 hover:border-[#FFD84D]/60 text-sm text-white transition"
                       data-testid={`hero-chip-${p.slug}`}>
-                      <span className="w-6 h-6 rounded-full flex items-center justify-center" style={{background:s.tint, color:s.accent}}>
-                        <Icon size={13} strokeWidth={2.4}/>
+                      <span className="w-7 h-7 rounded-full flex items-center justify-center shrink-0" style={{background:s.tint, color:s.accent}}>
+                        <Icon size={14} strokeWidth={2.4}/>
                       </span>
-                      {p.title}
+                      <span className="font-medium">{p.title}</span>
+                      <span className="ml-1 px-1.5 py-0.5 rounded-full bg-[#FFD84D]/20 text-[#FFD84D] text-[11px] font-bold num" data-testid={`hero-chip-rate-${p.slug}`}>{p.rate_from}%</span>
                     </button>
                   );
                 })}
@@ -212,16 +214,11 @@ export default function LandingPage() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" data-testid="product-grid">
           {products.slice(0,10).map(p => {
             const s = styleFor(p.slug);
-            const Icon = s.icon;
             return (
               <Link key={p.slug} to={`/product/${p.slug}`} data-testid={`product-card-${p.slug}`}
                     className="group relative bg-white rounded-2xl border border-[#0F3D2E]/8 overflow-hidden hover:shadow-xl hover:-translate-y-1 hover:border-transparent transition-all duration-200">
-                <div className="p-5 pb-4" style={{background:s.tint}}>
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center shadow-sm" style={{background:"white", color:s.accent}}>
-                    <Icon size={22} strokeWidth={2}/>
-                  </div>
-                </div>
-                <div className="p-5 pt-3">
+                <ProductArt slug={p.slug} tint={s.tint} accent={s.accent} size="md"/>
+                <div className="p-5 pt-4">
                   <div className="font-display text-[15px] font-bold text-[#0F3D2E]">{p.title}</div>
                   <div className="text-[11px] text-[#0F3D2E]/55 mt-0.5 line-clamp-2 leading-snug">{p.tagline}</div>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#0F3D2E]/8">
@@ -229,7 +226,7 @@ export default function LandingPage() {
                       <div className="text-[9.5px] uppercase tracking-wider text-[#0F3D2E]/50 font-bold">From</div>
                       <div className="font-display text-lg font-bold num" style={{color:s.accent}}>{p.rate_from}%</div>
                     </div>
-                    <ArrowRight size={16} className="text-[#0F3D2E]/25 group-hover:translate-x-1 transition" style={{color:s.accent}}/>
+                    <ArrowRight size={16} className="group-hover:translate-x-1 transition" style={{color:s.accent}}/>
                   </div>
                 </div>
               </Link>
