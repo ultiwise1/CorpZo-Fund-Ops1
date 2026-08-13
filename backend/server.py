@@ -148,6 +148,62 @@ async def require_user(request: Request):
     return await get_current_user(request, db)
 
 
+# ---------- RBAC scoping ----------
+FULL_ACCESS_ROLES = {"super_admin", "business_head", "finance", "compliance", "operations"}
+CREDIT_ROLES = {"credit_head", "credit_analyst"}
+MANAGER_ROLES = {"sales_manager", "channel_manager"}
+AGENT_ROLES = {"sales_agent"}
+PARTNER_ROLES = {"channel_partner"}
+
+
+async def team_employee_uids(manager_uid: str) -> list:
+    subs = await db.employees.find({"manager_uid": manager_uid}, {"_id": 0, "employee_uid": 1}).to_list(100)
+    return [manager_uid] + [s["employee_uid"] for s in subs]
+
+
+async def scope_query(user: dict, entity: str) -> dict:
+    """Return an additional Mongo query filter based on the user's role.
+    Empty {} means unrestricted access."""
+    role = user.get("role", "sales_agent")
+    if role in FULL_ACCESS_ROLES:
+        return {}
+    emp = user.get("employee_uid")
+    partner_uid = user.get("partner_uid")
+
+    if role in PARTNER_ROLES:
+        if not partner_uid:
+            return {"channel_partner_uid": "__none__"}  # deny-by-default
+        if entity in ("leads", "cases", "clients"):
+            return {"channel_partner_uid": partner_uid}
+        return {"channel_partner_uid": partner_uid}
+
+    if role in AGENT_ROLES:
+        if entity == "leads": return {"assigned_to": emp}
+        if entity == "cases": return {"sales_owner": emp}
+        if entity == "clients": return {"relationship_manager": emp}
+        if entity == "tasks": return {"owner_uid": emp}
+        return {}
+
+    if role in MANAGER_ROLES:
+        team = await team_employee_uids(emp)
+        if entity == "leads": return {"assigned_to": {"$in": team}}
+        if entity == "cases": return {"sales_owner": {"$in": team}}
+        if entity == "clients": return {"relationship_manager": {"$in": team}}
+        if entity == "tasks": return {"owner_uid": {"$in": team}}
+        return {}
+
+    if role in CREDIT_ROLES:
+        if entity == "cases": return {"credit_owner": emp} if role == "credit_analyst" else {}
+        return {}
+    return {}
+
+
+def sanitize_partner_case(case: dict) -> dict:
+    """Strip confidential credit notes for partner viewers."""
+    hide = {"credit_owner", "expected_revenue", "actual_revenue"}
+    return {k: v for k, v in case.items() if k not in hide}
+
+
 async def list_collection(coll_name: str, query: dict = None, sort_field: str = "created_at", limit: int = 500):
     query = query or {}
     cur = db[coll_name].find(query, {"_id": 0}).sort(sort_field, -1).limit(limit)
@@ -224,8 +280,8 @@ async def dashboard_summary(request: Request):
 @api.get("/leads")
 async def get_leads(request: Request, stage: Optional[str] = None, priority: Optional[str] = None,
                     assigned: Optional[str] = None, source: Optional[str] = None, q: Optional[str] = None):
-    await require_user(request)
-    query = {}
+    user = await require_user(request)
+    query = await scope_query(user, "leads")
     if stage: query["stage"] = stage
     if priority: query["priority"] = priority
     if assigned: query["assigned_to"] = assigned
@@ -384,8 +440,8 @@ async def add_activity(request: Request):
 # ============== CLIENTS ==============
 @api.get("/clients")
 async def get_clients(request: Request, q: Optional[str] = None):
-    await require_user(request)
-    query = {}
+    user = await require_user(request)
+    query = await scope_query(user, "clients")
     if q:
         query["$or"] = [
             {"name": {"$regex": q, "$options": "i"}},
@@ -435,8 +491,8 @@ async def update_client(client_uid: str, request: Request):
 @api.get("/cases")
 async def get_cases(request: Request, stage: Optional[str] = None, client_uid: Optional[str] = None,
                     product: Optional[str] = None, q: Optional[str] = None):
-    await require_user(request)
-    query = {}
+    user = await require_user(request)
+    query = await scope_query(user, "cases")
     if stage: query["stage"] = stage
     if client_uid: query["client_uid"] = client_uid
     if product: query["product"] = product
@@ -446,7 +502,10 @@ async def get_cases(request: Request, stage: Optional[str] = None, client_uid: O
             {"client_uid": {"$regex": q, "$options": "i"}},
             {"purpose": {"$regex": q, "$options": "i"}},
         ]
-    return await list_collection("cases", query)
+    rows = await list_collection("cases", query)
+    if user.get("role") == "channel_partner":
+        rows = [sanitize_partner_case(c) for c in rows]
+    return rows
 
 
 @api.post("/cases")
@@ -1158,7 +1217,7 @@ async def list_cp_commissions(request: Request, partner_uid: Optional[str] = Non
 @api.get("/tasks")
 async def list_tasks(request: Request, owner_uid: Optional[str] = None, status: Optional[str] = None):
     user = await require_user(request)
-    q = {}
+    q = await scope_query(user, "tasks")
     if owner_uid: q["owner_uid"] = owner_uid
     if status: q["status"] = status
     return await list_collection("tasks", q, sort_field="due_date")
@@ -1308,6 +1367,230 @@ async def pipeline_report(request: Request):
     ]).to_list(50)
     return [{"stage": r["_id"], "count": r["count"], "requested": r["requested"],
              "sanctioned": r["sanctioned"], "disbursed": r["disbursed"]} for r in rows]
+
+
+# ============== INVITE USER (Super Admin only) ==============
+@api.post("/users/invite")
+async def invite_user(request: Request):
+    actor = await require_user(request)
+    if actor["role"] != "super_admin":
+        raise HTTPException(403, "Admin only")
+    body = await request.json()
+    email = (body.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(422, "email required")
+    role = body.get("role", "sales_agent")
+    name = body.get("name") or email.split("@")[0].title()
+    existing = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing:
+        raise HTTPException(409, "User already exists")
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    emp_uid = await gen_uid(db, "employee") if role != "channel_partner" else None
+    now_iso = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "user_id": user_id, "email": email, "name": name, "picture": "",
+        "role": role, "employee_uid": emp_uid,
+        "partner_uid": body.get("partner_uid") if role == "channel_partner" else None,
+        "active": True, "invited_by": actor["user_id"],
+        "created_at": now_iso,
+    }
+    await db.users.insert_one(doc)
+    doc.pop("_id", None)
+    if emp_uid:
+        await db.employees.insert_one({
+            "employee_uid": emp_uid, "user_id": user_id, "email": email, "name": name,
+            "role": role, "manager_uid": body.get("manager_uid"),
+            "joining_date": now_iso, "ctc_monthly": float(body.get("ctc_monthly", 0)),
+            "target_multiplier": 3.0, "revenue_target": 0, "disbursement_target": 0,
+            "login_target": 0, "sanction_target": 0, "active": True, "created_at": now_iso,
+        })
+    await audit(actor, "user", user_id, "invited", None, doc)
+    return doc
+
+
+# ============== LEAD BULK IMPORT ==============
+@api.post("/leads/import")
+async def import_leads(request: Request):
+    user = await require_user(request)
+    body = await request.json()
+    rows = body.get("rows") or []
+    if not isinstance(rows, list) or not rows:
+        raise HTTPException(422, "rows[] required")
+
+    imported, duplicates, errors = [], [], []
+    for i, r in enumerate(rows):
+        try:
+            mobile = str(r.get("mobile", "")).strip()
+            email = str(r.get("email", "")).strip().lower()
+            pan = str(r.get("pan", "")).strip().upper()
+            gstin = str(r.get("gstin", "")).strip().upper()
+            company = str(r.get("company", "")).strip()
+            or_filters = []
+            if mobile: or_filters.append({"mobile": mobile})
+            if email: or_filters.append({"email": email})
+            if pan: or_filters.append({"pan": pan})
+            if gstin: or_filters.append({"gstin": gstin})
+            if company: or_filters.append({"company": {"$regex": f"^{company}$", "$options": "i"}})
+            dupe = None
+            if or_filters:
+                dupe_lead = await db.leads.find_one({"$or": or_filters}, {"_id": 0, "lead_uid": 1, "name": 1})
+                dupe_client = await db.clients.find_one({"$or": or_filters}, {"_id": 0, "client_uid": 1, "name": 1})
+                dupe = dupe_client or dupe_lead
+            if dupe:
+                duplicates.append({"row": i, "input": r, "match": dupe})
+                continue
+            if not r.get("name"):
+                errors.append({"row": i, "error": "name required"})
+                continue
+            uid = await gen_uid(db, "lead")
+            doc = {
+                "lead_uid": uid, "source": r.get("source", "import"),
+                "source_detail": r.get("source_detail", body.get("batch_id", "")),
+                "campaign": r.get("campaign", ""), "referral": "",
+                "channel_partner_uid": r.get("channel_partner_uid"),
+                "assigned_to": r.get("assigned_to") or user.get("employee_uid"),
+                "original_owner": r.get("assigned_to") or user.get("employee_uid"),
+                "borrower_type": r.get("borrower_type", "business"),
+                "name": r.get("name"), "company": company,
+                "mobile": mobile, "email": email,
+                "city": r.get("city", ""), "state": r.get("state", ""),
+                "product": r.get("product", "business_loan"),
+                "approx_requirement": float(r.get("approx_requirement") or 0),
+                "notes": r.get("notes", ""),
+                "stage": "new_lead", "priority": r.get("priority", "warm"),
+                "probability": 30, "expected_closure": None,
+                "rejection_reason": None, "client_uid": None,
+                "converted": False, "duplicate_of": None,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "pan": pan, "gstin": gstin,
+            }
+            await db.leads.insert_one(doc)
+            doc.pop("_id", None)
+            imported.append(doc)
+        except Exception as e:
+            errors.append({"row": i, "error": str(e)})
+
+    batch_id = f"IMP-{uuid.uuid4().hex[:8]}"
+    await audit(user, "lead_import", batch_id, "batch",
+                None, {"imported": len(imported), "duplicates": len(duplicates), "errors": len(errors)})
+    return {"batch_id": batch_id, "imported": imported, "duplicates": duplicates, "errors": errors,
+            "counts": {"imported": len(imported), "duplicates": len(duplicates), "errors": len(errors)}}
+
+
+# ============== RENEWAL RADAR ==============
+@api.get("/renewals")
+async def renewals(request: Request):
+    user = await require_user(request)
+    scope = await scope_query(user, "cases")
+    now = datetime.now(timezone.utc)
+    query = {"stage": "fully_disbursed", **scope}
+    cases = await db.cases.find(query, {"_id": 0}).to_list(500)
+    rows = []
+    for c in cases:
+        # first disbursement date as loan_start
+        first = await db.disbursements.find_one({"case_uid": c["case_uid"]}, {"_id": 0}, sort=[("disbursement_date", 1)])
+        if not first: continue
+        try:
+            start = datetime.fromisoformat(first["disbursement_date"])
+        except Exception:
+            continue
+        maturity = start + timedelta(days=int(c.get("tenure_months", 60)) * 30)
+        days_to = (maturity - now).days
+        if days_to > 180:  # only surface 6-month radar
+            continue
+        client = await db.clients.find_one({"client_uid": c["client_uid"]}, {"_id": 0, "name": 1, "company": 1, "mobile": 1, "relationship_manager": 1})
+        bucket = "30" if days_to <= 30 else "60" if days_to <= 60 else "90" if days_to <= 90 else "180"
+        rows.append({
+            "case_uid": c["case_uid"], "client_uid": c["client_uid"],
+            "client_name": (client or {}).get("name"), "company": (client or {}).get("company"),
+            "mobile": (client or {}).get("mobile"), "rm": (client or {}).get("relationship_manager"),
+            "product": c["product"], "disbursed_amount": c.get("disbursed_amount", 0),
+            "roi": c.get("expected_roi", 0), "tenure_months": c.get("tenure_months", 0),
+            "loan_start": first["disbursement_date"], "maturity_date": maturity.isoformat(),
+            "days_to_maturity": days_to, "bucket": bucket,
+        })
+    rows.sort(key=lambda r: r["days_to_maturity"])
+    return rows
+
+
+# ============== SCHEDULED CRONS ==============
+async def _process_hot_lead_followups():
+    now = datetime.now(timezone.utc)
+    cutoff_24h = (now - timedelta(hours=24)).isoformat()
+    hot = await db.leads.find({
+        "priority": "hot",
+        "converted": {"$ne": True},
+        "stage": {"$nin": ["closed", "lost", "rejected", "not_interested"]},
+    }, {"_id": 0}).to_list(500)
+    notified = 0
+    for lead in hot:
+        latest = await db.activities.find_one(
+            {"entity_type": "lead", "entity_id": lead["lead_uid"]},
+            {"_id": 0, "created_at": 1}, sort=[("created_at", -1)]
+        )
+        last_touch = (latest or {}).get("created_at") or lead.get("created_at")
+        if not last_touch or last_touch > cutoff_24h:
+            continue
+        owner_emp = await db.employees.find_one({"employee_uid": lead.get("assigned_to")}, {"_id": 0, "user_id": 1, "manager_uid": 1})
+        if not owner_emp:
+            continue
+        manager_emp = None
+        if owner_emp.get("manager_uid"):
+            manager_emp = await db.employees.find_one({"employee_uid": owner_emp["manager_uid"]}, {"_id": 0, "user_id": 1})
+        title = f"Hot lead cold: {lead['name']} ({lead['lead_uid']})"
+        for u in filter(None, [owner_emp, manager_emp]):
+            await db.notifications.insert_one({
+                "notification_id": f"notif_{uuid.uuid4().hex[:10]}",
+                "user_id": u["user_id"], "title": title,
+                "body": f"No activity in the last 24 hours on hot lead {lead['lead_uid']} — please act.",
+                "link": f"/leads/{lead['lead_uid']}", "kind": "warning",
+                "read": False, "created_at": now.isoformat(),
+            })
+            notified += 1
+        # Escalate: create a task for owner
+        await db.tasks.insert_one({
+            "task_id": await gen_uid(db, "task"),
+            "title": f"[Auto] Re-engage hot lead {lead['lead_uid']}",
+            "description": "Hot lead has been silent for 24+ hours. Call/WhatsApp today.",
+            "owner_uid": lead.get("assigned_to"),
+            "created_by": "system", "case_uid": None, "client_uid": None,
+            "lead_uid": lead["lead_uid"], "application_uid": None,
+            "priority": "urgent",
+            "due_date": (now + timedelta(hours=6)).isoformat(),
+            "status": "open", "origin": "auto_followup",
+            "created_at": now.isoformat(),
+        })
+        # mark lead escalated
+        await db.leads.update_one({"lead_uid": lead["lead_uid"]}, {"$set": {"stage": "escalated"}})
+    return notified
+
+
+@api.post("/cron/hot-leads")
+async def cron_hot_leads(request: Request):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    import hmac
+    auth = request.headers.get("Authorization", "")
+    expected = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    if not auth.startswith("Bearer ") or not expected or not hmac.compare_digest(auth[7:], expected):
+        raise HTTPException(401, "Unauthorized")
+    # tiny background handoff — run and return immediately (still bounded by 5s)
+    import asyncio as _a
+    _a.create_task(_process_hot_lead_followups())
+    return {"accepted": True}
+
+
+@api.get("/notifications")
+async def list_notifications(request: Request):
+    user = await require_user(request)
+    rows = await db.notifications.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(50)
+    return rows
+
+
+@api.post("/notifications/{notification_id}/read")
+async def mark_read(notification_id: str, request: Request):
+    user = await require_user(request)
+    await db.notifications.update_one({"notification_id": notification_id, "user_id": user["user_id"]}, {"$set": {"read": True}})
+    return {"ok": True}
 
 
 app.include_router(api)

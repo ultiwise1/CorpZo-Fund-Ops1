@@ -1,0 +1,8 @@
+crons:
+  - name: hot-leads-24h
+    description: "Every 15 min: nudge owners+managers when hot leads go cold for 24h and auto-create urgent tasks"
+    cron: "*/15 * * * *"
+    endpoint: "{{BASE_URL}}/api/cron/hot-leads"
+    method: POST
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    enabled: true

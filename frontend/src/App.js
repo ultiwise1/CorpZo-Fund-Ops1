@@ -34,6 +34,9 @@ import AdminUsers from "@/pages/AdminUsers";
 import AdminAudit from "@/pages/AdminAudit";
 import AdminIntegrations from "@/pages/AdminIntegrations";
 import AdminSettings from "@/pages/AdminSettings";
+import Renewals from "@/pages/Renewals";
+import LeadImport from "@/pages/LeadImport";
+import PartnerPortal from "@/pages/PartnerPortal";
 
 function AppRouter() {
   const location = useLocation();
@@ -57,6 +60,16 @@ function AppRoutes() {
       </Routes>
     );
   }
+  // Partner Portal routing
+  if (user.role === "channel_partner") {
+    return (
+      <Routes>
+        <Route path="/auth/callback" element={<AuthCallback/>}/>
+        <Route path="/partner/*" element={<PartnerPortal user={user}/>}/>
+        <Route path="*" element={<Navigate to="/partner/dashboard" replace/>}/>
+      </Routes>
+    );
+  }
   return (
     <Routes>
       <Route path="/login" element={<Navigate to="/dashboard" replace/>}/>
@@ -65,6 +78,7 @@ function AppRoutes() {
         <Route path="/" element={<Navigate to="/dashboard" replace/>}/>
         <Route path="/dashboard" element={<Dashboard/>}/>
         <Route path="/leads" element={<Leads/>}/>
+        <Route path="/leads/import" element={<LeadImport/>}/>
         <Route path="/leads/:uid" element={<LeadDetail/>}/>
         <Route path="/clients" element={<Clients/>}/>
         <Route path="/clients/:uid" element={<ClientDetail/>}/>
@@ -87,6 +101,7 @@ function AppRoutes() {
         <Route path="/employees" element={<Employees/>}/>
         <Route path="/incentives" element={<Incentives/>}/>
         <Route path="/reports" element={<Reports/>}/>
+        <Route path="/renewals" element={<Renewals/>}/>
         <Route path="/admin/users" element={<AdminUsers/>}/>
         <Route path="/admin/audit" element={<AdminAudit/>}/>
         <Route path="/admin/integrations" element={<AdminIntegrations/>}/>

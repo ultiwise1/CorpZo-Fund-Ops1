@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Upload as UploadIcon } from "lucide-react";
 
 export default function Leads() {
   const [leads, setLeads] = useState([]);
@@ -47,10 +48,12 @@ export default function Leads() {
           <h1 className="font-display text-2xl font-semibold text-slate-900">Leads</h1>
           <p className="text-sm text-slate-500">Every prospective borrower — no matter the source.</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-slate-900 hover:bg-slate-800" data-testid="new-lead-btn"><Plus size={15} className="mr-1"/>New Lead</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={()=>nav("/leads/import")} data-testid="import-leads-btn"><UploadIcon size={15} className="mr-1"/>Import</Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-slate-900 hover:bg-slate-800" data-testid="new-lead-btn"><Plus size={15} className="mr-1"/>New Lead</Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader><DialogTitle>Create new lead</DialogTitle></DialogHeader>
             <div className="grid grid-cols-2 gap-3 py-2">
@@ -86,6 +89,7 @@ export default function Leads() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 items-center bg-white border border-slate-200 rounded-lg p-3">

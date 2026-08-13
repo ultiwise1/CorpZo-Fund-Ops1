@@ -44,6 +44,7 @@ const NAV = [
     { to: "/employees", label: "Employees", icon: UsersRound, testid: "nav-employees" },
     { to: "/incentives", label: "Incentives", icon: Target, testid: "nav-incentives" },
     { to: "/reports", label: "Reports", icon: TrendingUp, testid: "nav-reports" },
+    { to: "/renewals", label: "Renewal Radar", icon: Award, testid: "nav-renewals" },
   ]},
   { section: "Administration", items: [
     { to: "/admin/users", label: "Users & Roles", icon: Users, testid: "nav-users" },

@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Upload, Download, ShieldCheck, Plus, FileSignature } from "lucide-react";
+import CAM from "@/pages/CAM";
 
 export default function CaseDetail() {
   const { uid } = useParams();
@@ -105,6 +106,7 @@ export default function CaseDetail() {
           <TabsTrigger value="documents" data-testid="tab-documents">Documents ({d.documents.length})</TabsTrigger>
           <TabsTrigger value="bureau" data-testid="tab-bureau">Bureau ({d.bureau.length})</TabsTrigger>
           <TabsTrigger value="applications" data-testid="tab-applications">Applications ({d.applications.length})</TabsTrigger>
+          <TabsTrigger value="cam" data-testid="tab-cam">CAM</TabsTrigger>
           <TabsTrigger value="queries" data-testid="tab-queries">Queries ({d.queries.length})</TabsTrigger>
           <TabsTrigger value="sanctions" data-testid="tab-sanctions">Sanctions ({d.sanctions.length})</TabsTrigger>
           <TabsTrigger value="disbursements" data-testid="tab-disbursements">Disbursements ({d.disbursements.length})</TabsTrigger>
@@ -289,6 +291,10 @@ export default function CaseDetail() {
               <div className="text-xs text-slate-500">Raised by {q.raised_by} · Due {fmtDate(q.due_date)}</div>
             </div>
           )} empty="No lender queries."/>
+        </TabsContent>
+
+        <TabsContent value="cam">
+          <CAM caseData={d} onSaved={load}/>
         </TabsContent>
 
         <TabsContent value="sanctions">

@@ -65,3 +65,38 @@ Lead • Client • Case • Employee • ChannelPartner • Document • PDForm
 - Compliance / Audit — full audit log
 - Channel Manager — partner performance, commissions
 - Channel Partner — restricted portal (future)
+
+## Iteration 2 (Feb 2026) — Extensions
+### New capabilities
+- **CAM Full Form**: Complete Credit Assessment inside every case (Overview, Financials, Banking, Ratios, Positives/Concerns, Green/Amber/Red flags with add/remove, Indicative eligibility, Recommendation, Analyst Comments) — `/api/cases/{uid}/assessment`.
+- **Excel/Sheets Lead Import**: 4-step wizard (paste → map → preview → import) with auto column heuristics and dedupe against existing leads and clients by mobile / email / PAN / GSTIN / company — `/api/leads/import`.
+- **Renewal Radar** `/renewals`: every fully-disbursed case bucketed by 30/60/90/180 days to maturity with RM ownership, so refinance/top-up leads never slip.
+- **Auto Follow-up Rules**: `.emergent/crons.yml` schedules `/api/cron/hot-leads` every 15 min. Hot leads silent for 24h → notification for owner + manager, urgent task (`origin=auto_followup`) auto-created, lead moved to `escalated`.
+- **Super Admin Invite Users**: `/api/users/invite` (super_admin only). Admin Users screen has an Invite dialog that auto-creates the user + Employee UID, with a partner picker when role=channel_partner.
+- **Fence & Guardrail (RBAC row-level)**: `scope_query(user, entity)` in `server.py` filters `/leads`, `/clients`, `/cases`, `/tasks`:
+  - super_admin/business_head/finance/compliance/operations → unrestricted
+  - sales_manager/channel_manager → own team (self + direct reports)
+  - sales_agent → own records
+  - credit_analyst → cases where credit_owner=self
+  - channel_partner → only records with matching channel_partner_uid; case objects are sanitised of `credit_owner`, `expected_revenue`, `actual_revenue`.
+- **Partner Portal** `/partner/*`: automatically served when `user.role=channel_partner`. Dedicated sidebar with Dashboard (KPIs), My Referrals (case status only), My Commissions. Partner cannot access super-admin routes (invite returns 403 verified).
+
+### Notification Centre (P1 groundwork)
+- `/api/notifications` list + `/api/notifications/{id}/read` — populated by hot-lead cron.
+
+### Files added / modified in iter2
+- `backend`: `scope_query`, `require_user` returns user, `/users/invite`, `/leads/import`, `/renewals`, `/cron/hot-leads`, `/notifications`, `WEBHOOK_CRON_SECRET`.
+- `frontend/pages`: `CAM.jsx`, `Renewals.jsx`, `LeadImport.jsx`, `PartnerPortal.jsx`.
+- `frontend/components/layout/PartnerSidebar.jsx`.
+- `frontend/App.js`: partner-role early routing, /leads/import + /renewals routes.
+- `.emergent/crons.yml`: hot-leads-24h @ */15 * * * *.
+
+## Still on the backlog (P1/P2)
+- Real Bureau connectors (CIBIL/Experian/CRIF/Equifax) via Settings
+- eSign integration & signed mandate PDF generation
+- Payment gateway link generation
+- Email/WhatsApp/SMS delivery adapters (notifications currently in-app only)
+- CorpZo advisory service opportunity generator on document deficiency
+- Configurable incentive/CP-commission rule engine UI
+- Manager escalation SLA rules (extension of hot-lead cron)
+- CP portal document exchange
