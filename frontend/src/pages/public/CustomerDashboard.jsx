@@ -24,20 +24,20 @@ export default function CustomerDashboard({ user }) {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7]" data-testid="customer-dashboard">
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-[#0F3D2E]/10 shadow-[0_1px_0_rgba(15,61,46,0.03)]">
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur border-b border-[#0B1F3A]/10 shadow-[0_1px_0_rgba(15,61,46,0.03)]">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2 font-display text-lg font-bold text-[#0F3D2E]"><Landmark size={22} className="text-[#1F5B4A]"/>CORPZO</a>
+          <a href="/" className="flex items-center gap-2 font-display text-lg font-bold text-[#0B1F3A]"><Landmark size={22} className="text-[#1B3A6B]"/>CORPZO</a>
           <div className="flex items-center gap-3">
-            <div className="text-sm text-[#0F3D2E]/70 hidden sm:block">Hi, <span className="font-semibold text-[#0F3D2E]">{user.name?.split(" ")[0]}</span></div>
-            <Button size="sm" variant="ghost" onClick={logout} className="text-[#0F3D2E]/70 hover:text-[#0F3D2E]"><LogOut size={14} className="mr-1"/>Sign out</Button>
+            <div className="text-sm text-[#0B1F3A]/70 hidden sm:block">Hi, <span className="font-semibold text-[#0B1F3A]">{user.name?.split(" ")[0]}</span></div>
+            <Button size="sm" variant="ghost" onClick={logout} className="text-[#0B1F3A]/70 hover:text-[#0B1F3A]"><LogOut size={14} className="mr-1"/>Sign out</Button>
           </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8 space-y-6">
         <div>
-          <h1 className="font-display text-3xl font-bold text-[#0F3D2E]">Your applications</h1>
-          <p className="text-[#0F3D2E]/60 text-sm mt-1">Every enquiry, application and disbursal you've made with CorpZo — in one view.</p>
+          <h1 className="font-display text-3xl font-bold text-[#0B1F3A]">Your applications</h1>
+          <p className="text-[#0B1F3A]/60 text-sm mt-1">Every enquiry, application and disbursal you've made with CorpZo — in one view.</p>
         </div>
 
         <div className="grid grid-cols-3 gap-4">
@@ -46,8 +46,8 @@ export default function CustomerDashboard({ user }) {
           <Stat label="Total sanctioned" v={inr(data.cases.reduce((s,c)=>s+(c.sanctioned_amount||0),0))}/>
         </div>
 
-        <div className="bg-white border border-[#0F3D2E]/10 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#0F3D2E]/10 bg-[#F1F7F3]"><h3 className="font-display text-lg font-bold text-[#0F3D2E]">Recent enquiries</h3></div>
+        <div className="bg-white border border-[#0B1F3A]/10 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#0B1F3A]/10 bg-[#F2F5FA]"><h3 className="font-display text-lg font-bold text-[#0B1F3A]">Recent enquiries</h3></div>
           <table className="w-full dense-table">
             <thead><tr><th>Reference</th><th>Product</th><th className="num-cell">Amount</th><th>Stage</th><th>Priority</th><th>Received</th></tr></thead>
             <tbody>
@@ -61,24 +61,24 @@ export default function CustomerDashboard({ user }) {
                   <td className="text-xs">{fmtDate(l.created_at)}</td>
                 </tr>
               ))}
-              {data.leads.length===0 && <tr><td colSpan={6} className="p-8 text-center text-[#0F3D2E]/55">No enquiries yet. <a href="/products" className="text-[#16A981] hover:underline font-semibold">Explore products →</a></td></tr>}
+              {data.leads.length===0 && <tr><td colSpan={6} className="p-8 text-center text-[#0B1F3A]/55">No enquiries yet. <a href="/products" className="text-[#FF6B4E] hover:underline font-semibold">Explore products →</a></td></tr>}
             </tbody>
           </table>
         </div>
 
-        <div className="bg-white border border-[#0F3D2E]/10 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#0F3D2E]/10 bg-[#F1F7F3]"><h3 className="font-display text-lg font-bold text-[#0F3D2E]">Your cases</h3></div>
+        <div className="bg-white border border-[#0B1F3A]/10 rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[#0B1F3A]/10 bg-[#F2F5FA]"><h3 className="font-display text-lg font-bold text-[#0B1F3A]">Your cases</h3></div>
           {data.cases.length === 0 ? (
-            <div className="p-8 text-center text-[#0F3D2E]/55 text-sm">Cases appear here once your enquiry qualifies. Your RM will call you shortly.</div>
+            <div className="p-8 text-center text-[#0B1F3A]/55 text-sm">Cases appear here once your enquiry qualifies. Your RM will call you shortly.</div>
           ) : (
-            <div className="divide-y divide-[#0F3D2E]/8">
+            <div className="divide-y divide-[#0B1F3A]/8">
               {data.cases.map(c => (
                 <div key={c.case_uid} className="p-5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-xs mono text-[#0F3D2E]/50">{c.case_uid}</div>
-                      <div className="font-display text-lg text-[#0F3D2E] font-bold">{humanize(c.product)}</div>
-                      <div className="text-sm text-[#0F3D2E]/55 mt-1">{c.purpose || "No purpose captured"} · Tenure {c.tenure_months}m</div>
+                      <div className="text-xs mono text-[#0B1F3A]/50">{c.case_uid}</div>
+                      <div className="font-display text-lg text-[#0B1F3A] font-bold">{humanize(c.product)}</div>
+                      <div className="text-sm text-[#0B1F3A]/55 mt-1">{c.purpose || "No purpose captured"} · Tenure {c.tenure_months}m</div>
                     </div>
                     <span className={`pill ${pillClass(c.stage)}`}>{humanize(c.stage)}</span>
                   </div>
@@ -89,7 +89,7 @@ export default function CustomerDashboard({ user }) {
                     <Fact k="Docs" v={`${c.documentation_pct}%`}/>
                   </div>
                   <div className="mt-4 flex justify-end">
-                    <label className="inline-flex items-center gap-2 text-xs px-3 py-1.5 border border-[#0F3D2E]/15 rounded-md hover:border-[#16A981] hover:text-[#16A981] cursor-pointer font-semibold text-[#0F3D2E]/70">
+                    <label className="inline-flex items-center gap-2 text-xs px-3 py-1.5 border border-[#0B1F3A]/15 rounded-md hover:border-[#FF6B4E] hover:text-[#FF6B4E] cursor-pointer font-semibold text-[#0B1F3A]/70">
                       <Upload size={13}/>Upload document
                       <input type="file" className="hidden" onChange={e=>uploadDoc(e, c.case_uid, c.client_uid)} data-testid={`customer-upload-${c.case_uid}`}/>
                     </label>
@@ -107,9 +107,9 @@ export default function CustomerDashboard({ user }) {
 function Stat({ label, v }) {
   return <div className="bg-white border border-slate-200 rounded-xl p-4">
     <div className="text-xs uppercase tracking-widest text-slate-500 font-semibold">{label}</div>
-    <div className="font-display text-2xl font-bold text-[#0F3D2E] num mt-1">{v}</div>
+    <div className="font-display text-2xl font-bold text-[#0B1F3A] num mt-1">{v}</div>
   </div>;
 }
 function Fact({ k, v }) {
-  return <div><div className="text-[10.5px] uppercase tracking-widest text-[#0F3D2E]/50 font-bold">{k}</div><div className="font-display text-base text-[#0F3D2E] num font-bold">{v}</div></div>;
+  return <div><div className="text-[10.5px] uppercase tracking-widest text-[#0B1F3A]/50 font-bold">{k}</div><div className="font-display text-base text-[#0B1F3A] num font-bold">{v}</div></div>;
 }

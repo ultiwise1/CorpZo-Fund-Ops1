@@ -35,19 +35,19 @@ export default function AdminSettings() {
   return (
     <div className="space-y-5" data-testid="admin-settings-page">
       <div>
-        <h1 className="font-display text-2xl font-bold text-[#0F3D2E]">Settings</h1>
-        <p className="text-sm text-[#0F3D2E]/60 mt-1">System-wide defaults, routing and numbering rules.</p>
+        <h1 className="font-display text-2xl font-bold text-[#0B1F3A]">Settings</h1>
+        <p className="text-sm text-[#0B1F3A]/60 mt-1">System-wide defaults, routing and numbering rules.</p>
       </div>
 
       {/* Advisory desk auto-assign */}
-      <div className="bg-white border border-[#0F3D2E]/10 rounded-xl p-6" data-testid="advisory-desk-card">
+      <div className="bg-white border border-[#0B1F3A]/10 rounded-xl p-6" data-testid="advisory-desk-card">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-[#FFD84D]/20 border border-[#FFD84D]/40 flex items-center justify-center shrink-0">
             <Handshake size={22} className="text-[#8A6600]"/>
           </div>
           <div className="flex-1">
-            <div className="font-display text-lg font-bold text-[#0F3D2E]">Advisory desk auto-assign</div>
-            <p className="text-sm text-[#0F3D2E]/60 mt-0.5">
+            <div className="font-display text-lg font-bold text-[#0B1F3A]">Advisory desk auto-assign</div>
+            <p className="text-sm text-[#0B1F3A]/60 mt-0.5">
               Every new advisory opportunity created from a missing document will be assigned to this owner.
               If unset, opportunities fall back to the case sales owner.
             </p>
@@ -66,12 +66,12 @@ export default function AdminSettings() {
                 </Select>
               </div>
               <Button disabled={!dirty || saving} onClick={save}
-                className="bg-[#1F5B4A] hover:bg-[#0F3D2E] text-white disabled:opacity-40"
+                className="bg-[#1B3A6B] hover:bg-[#0B1F3A] text-white disabled:opacity-40"
                 data-testid="save-advisory-owner-btn">
                 <Save size={14} className="mr-1.5"/>{saving ? "Saving…" : "Save"}
               </Button>
             </div>
-            <div className="mt-3 flex items-center gap-1.5 text-xs text-[#0F3D2E]/50">
+            <div className="mt-3 flex items-center gap-1.5 text-xs text-[#0B1F3A]/50">
               <Info size={12}/> Only super_admin and business_head can change this.
             </div>
           </div>
@@ -79,10 +79,10 @@ export default function AdminSettings() {
       </div>
 
       {/* Static config reference */}
-      <div className="bg-white border border-[#0F3D2E]/10 rounded-xl p-6 space-y-4" data-testid="settings-reference">
+      <div className="bg-white border border-[#0B1F3A]/10 rounded-xl p-6 space-y-4" data-testid="settings-reference">
         <div className="flex items-center gap-2">
-          <ShieldCheck size={16} className="text-[#16A981]"/>
-          <div className="font-display font-bold text-[#0F3D2E]">Configuration reference</div>
+          <ShieldCheck size={16} className="text-[#FF6B4E]"/>
+          <div className="font-display font-bold text-[#0B1F3A]">Configuration reference</div>
         </div>
         <Section title="Products" body="Home Loan, Business Loan, LAP, Personal Loan, Working Capital, CC/OD, Term Loan, Equipment Finance, Project Finance, Construction, SCF, Invoice Discounting, LAS, Structured Finance, Private Credit."/>
         <Section title="Pipeline stages" body="20 default stages including qualification, PD, credit assessment, mandate, lender submission, sanction, and disbursement. Configurable per product."/>
@@ -97,7 +97,7 @@ export default function AdminSettings() {
 
 function Section({ title, body }) {
   return <div>
-    <div className="text-sm font-bold text-[#0F3D2E]">{title}</div>
-    <div className="text-sm text-[#0F3D2E]/65 mt-0.5">{body}</div>
+    <div className="text-sm font-bold text-[#0B1F3A]">{title}</div>
+    <div className="text-sm text-[#0B1F3A]/65 mt-0.5">{body}</div>
   </div>;
 }

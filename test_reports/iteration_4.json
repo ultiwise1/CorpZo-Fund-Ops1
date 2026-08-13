@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend E2E validation of the new Navy/Coral/Gold public site (desktop 1440x900 + mobile 390x844) plus CRM regressions. PASS: hero renders navy gradient linear-gradient(to bottom right, #081733, #0B1F3A, #1B3A6B) with white copy 'One application. 40+ lenders. Best rate wins.'; yellow (#FFD84D) 'Hello, borrower!' bubble; 8 popular-product chips each with a rate badge (8.35%, 12%, 9.25%...); 'Explore all products' + 'Get a call back' CTAs; stat strip shows 4 stats with labels (40+ Lender partners, Rs2,500 Cr+ Disbursed, 15 Debt products, 4.8/5 Client rating). Product grid renders 10 cards each with ProductArt SVG + title + tagline + 'From X.XX%'; clicking card 1 routes to /product/home-loan and the detail page loads. Lender wall renders 60 tiles (lender-logo-0..59), '120+ Lender Partners' + 'Rs2,500 Cr+ disbursed' badges and '+ 60 more partners onboarding this quarter' chip; on mobile it renders a real 3-column grid (107px x 3). EMI sliders (amount/rate/tenure) update emi-monthly reactively. FAQ faq-0 toggles open/close correctly. Mobile hamburger (mobile-menu-toggle) opens mobile-menu containing Products/EMI Calculator/Apply/Partners/CRM login/Sign in-Sign up; mobile-crm-login navigates to /login (login-page + google-signin-btn render, menu auto-closes); mobile-nav-products -> /products and mobile-nav-apply -> /apply work. Hero quick apply (Test QA / 9998887777 / Home Loan / 1500000) submitted successfully -> success toast 'Application received (LD-2026-000056)' and route /apply/thanks?lead=LD-2026-000056; GET /api/leads (admin token) confirmed newest lead source='website', source_detail='public_apply', name='Test QA', product=home_loan, amount=1500000. CRM regressions (session-cookie auth as super_admin, Google OAuth cannot be completed headlessly): /dashboard loads with full data; TopBar global-search 'Rohit' renders search-results dropdown with Leads(4)/Clients(2)/Cases(3); /opportunities page loads with 2 open opportunities; /api/reports/weekly.xlsx 200 spreadsheet 8.5KB and /api/reports/weekly.pdf 200 application/pdf 3.1KB; /api/opportunities 200 list; 0 error elements on all pages tested.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "EMI Calculator / lib/format.js inr()", "issue": "Monthly EMI renders raw decimals when value < Rs1,00,000 e.g. 'Rs62,106.574' / 'Rs85,975.602' (inr() only rounds in the Cr/L branches, falls through to toLocaleString with no maximumFractionDigits). Affects emi-monthly, total interest and any currency under Rs1L across the app.", "selector": "[data-testid=\"emi-monthly\"]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing hero (mobile 390x844)", "issues": ["The two large liquid blobs (#FFD84D/40 to #00FFE1/25) sit over the narrow mobile hero, so the top-right half reads olive-green/teal rather than deep navy — theme intent is muddied at small widths. Consider reducing blob opacity/size below md."]},
+      {"screen": "/login (mobile + desktop)", "issues": ["Same yellow/teal blob wash makes the navy auth background look green-tinted; large empty vertical space above the Sign in card (carried over from iteration_3)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py"],
+  "action_items": [
+    "Round currency in lib/format.js inr() (use maximumFractionDigits: 0 in the toLocaleString branch) so Monthly EMI shows Rs62,107 not Rs62,106.574.",
+    "Optional: tone down hero liquid blobs at <md widths so the mobile hero stays Navy instead of reading green/teal.",
+    "Note: webpack dev-server file watcher missed an edit to LandingPage.jsx (bundle.js kept the old code until `supervisorctl restart frontend`). If a UI change appears missing, restart frontend before assuming a code bug."
+  ],
+  "critical_code_review_comments": [
+    "LandingPage.jsx is 557 lines with hero/products/EMI/lender-wall/FAQ inline — split into section components for maintainability.",
+    "Lender wall duplicates the count claim in three places (hero '40+ lenders', LENDER_COUNT_LABEL '120+ Lender Partners', 60 rendered tiles + '+60 more') — inconsistent marketing numbers on the same page; derive them from one constant.",
+    "FAQ items are <button> wrappers containing a <p> answer; consider a proper accordion with aria-expanded for a11y."
+  ],
+  "updated_files": ["/app/frontend/src/pages/public/LandingPage.jsx (added data-testid: hero-stat-strip, stat-lenders, stat-disbursed, stat-products, stat-rating; Stat now accepts a testid prop — testids only, no behaviour change)"],
+  "success_rate": {"backend": "regression endpoints 100% (leads, opportunities, search, weekly.xlsx, weekly.pdf)", "frontend": "100% of 12 requested flows (1 cosmetic formatting defect)"},
+  "seed_data_creation": "Created lead LD-2026-000056 via the public hero quick-apply flow for verification; deleted afterwards (db.leads.deleteMany({name:'Test QA'})).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "Google-only login; CRM UI tested by injecting cookie session_token=test_session_supertoken (super_admin corpzoindia@gmail.com) per /app/memory/test_credentials.md. API tested with Bearer test_session_supertoken.",
+  "context_for_next_testing_agent": "Public site theme, hamburger menu and 60-tile lender wall are verified working at https://credit-ops-5.preview.emergentagent.com. Expected console noise: two 401s from /api/auth/me on every logged-out page load. hero-product-select is a native <select> (use select_option, not shadcn option clicks). New testids available: hero-stat-strip, stat-lenders/disbursed/products/rating. Only open item is the inr() decimal formatting for values < Rs1L.",
+  "rca_of_the_issue": "EMI decimal defect RCA: lib/format.js inr() rounds to 2dp only for Cr (>=1e7) and L (>=1e5); values below Rs1L hit `abs.toLocaleString('en-IN')` which keeps up to 3 fraction digits, so the unrounded EMI float leaks decimals into emi-monthly. Fix: pass {maximumFractionDigits: 0} (or Math.round) in that branch."
+}

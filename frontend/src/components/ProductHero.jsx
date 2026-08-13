@@ -25,7 +25,7 @@ const CHARACTERS = {
 
 function Character({ kind, accent }) {
   // Common colors
-  const skin = "#EACFB6", clothesA = accent, clothesB = "#0F3D2E";
+  const skin = "#EACFB6", clothesA = accent, clothesB = "#0B1F3A";
   if (kind === "family") {
     return (
       <g>
@@ -177,7 +177,7 @@ function ProductScene({ slug, accent }) {
 /**
  * <ProductHero title tagline slug tint accent />
  */
-export default function ProductHero({ title, tagline, slug, tint = "#F1F7F3", accent = "#1F5B4A" }) {
+export default function ProductHero({ title, tagline, slug, tint = "#F2F5FA", accent = "#1B3A6B" }) {
   const charKind = CHARACTERS[slug] || "business";
   return (
     <div className="relative overflow-hidden rounded-3xl mb-6" style={{background:`linear-gradient(120deg, ${tint} 0%, #FFFFFF 60%, ${tint} 100%)`}}>
@@ -217,8 +217,8 @@ export default function ProductHero({ title, tagline, slug, tint = "#F1F7F3", ac
       {/* Glass caption */}
       <div className="absolute left-6 bottom-6 right-6 md:left-8 md:bottom-8 md:right-auto md:max-w-lg glass-light rounded-2xl px-5 py-4 shadow-lg">
         <div className="text-[10.5px] uppercase tracking-widest font-bold" style={{color:accent}}>CorpZo Product</div>
-        <div className="font-display text-2xl md:text-3xl font-bold text-[#0F3D2E] mt-0.5">{title}</div>
-        <div className="text-sm text-[#0F3D2E]/70 mt-1 line-clamp-2">{tagline}</div>
+        <div className="font-display text-2xl md:text-3xl font-bold text-[#0B1F3A] mt-0.5">{title}</div>
+        <div className="text-sm text-[#0B1F3A]/70 mt-1 line-clamp-2">{tagline}</div>
       </div>
     </div>
   );

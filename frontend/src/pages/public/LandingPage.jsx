@@ -14,23 +14,23 @@ import ProductArt from "@/components/ProductArt";
 
 /** urban-money style tinted background per backend product slug */
 const PRODUCT_STYLE = {
-  "home-loan":              { icon: Home,          tint: "#E0F5EC", accent: "#16A981" },
+  "home-loan":              { icon: Home,          tint: "#FFE4DE", accent: "#FF6B4E" },
   "business-loan":          { icon: Briefcase,     tint: "#FFF3D6", accent: "#D89B00" },
   "lap":                    { icon: Building2,     tint: "#E4F1FB", accent: "#3287D6" },
   "personal-loan":          { icon: User,          tint: "#FCE7EA", accent: "#E24A6B" },
   "working-capital":        { icon: Coins,         tint: "#FFEFDA", accent: "#E37800" },
   "cc-od":                  { icon: Percent,       tint: "#F2E9FE", accent: "#8B5CF6" },
-  "term-loan":              { icon: TrendingUp,    tint: "#DFF5F1", accent: "#0F8B7A" },
+  "term-loan":              { icon: TrendingUp,    tint: "#DFF5F1", accent: "#E85A3D" },
   "equipment-finance":      { icon: Cog,           tint: "#E9F1FF", accent: "#3357C1" },
   "project-finance":        { icon: Factory,       tint: "#FBE9DA", accent: "#D25E1F" },
   "construction-finance":   { icon: Building2,     tint: "#FDECD8", accent: "#C05621" },
   "supply-chain-finance":   { icon: Truck,         tint: "#E2F2FF", accent: "#1D8FE1" },
   "invoice-discounting":    { icon: Layers,        tint: "#F7E5F1", accent: "#B23B8A" },
   "loan-against-securities":{ icon: TrendingUp,    tint: "#FFF7C2", accent: "#B58900" },
-  "structured-finance":     { icon: Landmark,      tint: "#E7EDE9", accent: "#0F3D2E" },
+  "structured-finance":     { icon: Landmark,      tint: "#E7EDE9", accent: "#0B1F3A" },
   "private-credit":         { icon: Gem,           tint: "#E1EDFD", accent: "#4C6FE1" },
 };
-const styleFor = (slug) => PRODUCT_STYLE[slug] || { icon: Coins, tint: "#F1F4F1", accent: "#1F5B4A" };
+const styleFor = (slug) => PRODUCT_STYLE[slug] || { icon: Coins, tint: "#F1F4F1", accent: "#1B3A6B" };
 
 const TESTIMONIALS = [
   {name:"Anjali M.", role:"SME Founder, Pune",         quote:"Approved for ₹1.5 Cr in 9 days — CorpZo compared 6 lenders and negotiated the ROI down 90bps.", rating:5},
@@ -38,7 +38,15 @@ const TESTIMONIALS = [
   {name:"Krishna Steel", role:"Manufacturing, Ahmedabad", quote:"They fixed our CMA and got working capital sanctioned in a single quarter.",                    rating:5},
 ];
 
-const LENDER_LOGOS = ["HDFC","ICICI","AXIS","KOTAK","BAJAJ","TATA","ABF","PIRAMAL","INDUSIND","YES"];
+const LENDER_LOGOS = [
+  "HDFC Bank","ICICI Bank","Axis Bank","Kotak","SBI","PNB","Bank of Baroda","IndusInd","Yes Bank","IDFC First",
+  "Federal Bank","RBL Bank","Standard Chartered","HSBC","DBS","Bajaj Finserv","Tata Capital","Aditya Birla","Piramal","L&T Finance",
+  "Poonawalla","Hero FinCorp","Cholamandalam","Mahindra Finance","Shriram","Muthoot","Manappuram","Fullerton","IIFL","Edelweiss",
+  "JM Financial","Kotak Investment","Nomura","Northern Arc","Vivriti","U GRO","Lendingkart","FlexiLoans","Indifi","NeoGrowth",
+  "InCred","Clix Capital","DMI Finance","Godrej Capital","Hinduja Leyland","SMFG India","Ambit","Avanse","Auxilo","Credila",
+  "AU Small Finance","Ujjivan","Equitas","ESAF","Suryoday","Utkarsh","Fincare","Jana","Bandhan","City Union",
+];
+const LENDER_COUNT_LABEL = "120+ Lender Partners";
 
 const FAQS = [
   {q:"Is CorpZo a bank?", a:"No — we're a debt marketplace and credit consultancy. We work with 40+ RBI-regulated banks and NBFCs and structure your loan case for the best terms."},
@@ -74,13 +82,13 @@ export default function LandingPage() {
   };
 
   return (
-    <div data-testid="landing-page" className="text-[#0F3D2E]">
+    <div data-testid="landing-page" className="text-[#0B1F3A]">
 
       {/* ==================================================================== */}
       {/* HERO BANNER — CorpZo brand w/ Venturaz shapes + Urban Money cues       */}
       {/* Glass morphism + liquid morphism + neon highlights                     */}
       {/* ==================================================================== */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#0A2E24] via-[#0F3D2E] to-[#1F5B4A] text-white">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#081733] via-[#0B1F3A] to-[#1B3A6B] text-white">
         {/* venturaz signature — concentric-circle motif */}
         <svg className="absolute -left-60 top-0 opacity-25" width="900" height="900" viewBox="0 0 900 900" fill="none">
           {[100,180,260,340,420,500].map(r => <circle key={r} cx="450" cy="450" r={r} stroke="#FFD84D" strokeWidth="0.5" strokeDasharray="2 8"/>)}
@@ -88,10 +96,10 @@ export default function LandingPage() {
         {/* dot grid overlay */}
         <div className="absolute inset-0 bg-dot-grid opacity-40"/>
 
-        {/* LIQUID MORPHISM BLOBS */}
-        <div className="absolute -top-40 -right-40 w-[560px] h-[560px] bg-gradient-to-br from-[#DFFF3B]/40 to-[#00FFE1]/25 blur-3xl liquid-blob"/>
-        <div className="absolute -bottom-56 left-1/4 w-[520px] h-[520px] bg-gradient-to-tr from-[#FFD84D]/30 to-[#16A981]/25 blur-3xl liquid-blob-2"/>
-        <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-[#C6FF3B]/10 blur-3xl liquid-blob-3"/>
+        {/* LIQUID MORPHISM BLOBS — subdued on mobile so navy theme reads correctly */}
+        <div className="absolute -top-40 -right-40 w-[320px] h-[320px] md:w-[560px] md:h-[560px] bg-gradient-to-br from-[#FFD84D]/15 to-[#FF6B4E]/10 md:from-[#FFD84D]/40 md:to-[#00FFE1]/25 blur-3xl liquid-blob"/>
+        <div className="absolute -bottom-56 left-1/4 w-[280px] h-[280px] md:w-[520px] md:h-[520px] bg-gradient-to-tr from-[#FFD84D]/10 to-[#FF6B4E]/10 md:from-[#FFD84D]/30 md:to-[#FF6B4E]/25 blur-3xl liquid-blob-2"/>
+        <div className="hidden md:block absolute top-1/3 right-1/3 w-64 h-64 bg-[#00D9FF]/10 blur-3xl liquid-blob-3"/>
 
         {/* smooth fade to page */}
         <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#FAFAF7] to-transparent"/>
@@ -111,9 +119,9 @@ export default function LandingPage() {
           <div className="lg:col-span-7">
             {/* Hello chat bubble — Urban Money signature */}
             <div className="inline-flex items-center gap-2 mb-4" data-testid="hero-hello-bubble">
-              <div className="relative bg-[#DFFF3B] text-[#0F3D2E] px-3 py-1.5 rounded-2xl rounded-bl-sm font-display font-bold text-sm shadow-lg neon-glow">
+              <div className="relative bg-[#FFD84D] text-[#0B1F3A] px-3 py-1.5 rounded-2xl rounded-bl-sm font-display font-bold text-sm shadow-lg neon-glow">
                 Hello, borrower!
-                <span className="absolute -bottom-1 left-2 w-0 h-0 border-t-8 border-t-[#DFFF3B] border-l-8 border-l-transparent"/>
+                <span className="absolute -bottom-1 left-2 w-0 h-0 border-t-8 border-t-[#FFD84D] border-l-8 border-l-transparent"/>
               </div>
               <div className="text-xs text-white/60">👋 We compare 40+ lenders for you</div>
             </div>
@@ -128,7 +136,7 @@ export default function LandingPage() {
             <p className="text-lg text-white/80 mt-5 max-w-xl">
               Compare offers from India&apos;s top banks &amp; NBFCs, get personalised quotes in minutes,
               and let CorpZo&apos;s credit team drive your case end-to-end.
-              <span className="ml-1 inline-block px-2 py-0.5 rounded bg-[#DFFF3B]/15 border border-[#DFFF3B]/30 neon-lime font-semibold text-sm">Zero cost until sanction</span>
+              <span className="ml-1 inline-block px-2 py-0.5 rounded bg-[#FFD84D]/15 border border-[#FFD84D]/30 neon-lime font-semibold text-sm">Zero cost until sanction</span>
             </p>
 
             {/* Product chips — with live rate_from */}
@@ -155,7 +163,7 @@ export default function LandingPage() {
 
             {/* CTA row */}
             <div className="flex flex-wrap gap-3 mt-8">
-              <Button className="bg-[#DFFF3B] hover:bg-[#C6FF00] text-[#0F3D2E] font-bold h-12 px-7 shadow-lg neon-glow transition-all"
+              <Button className="bg-[#FFD84D] hover:bg-[#C6FF00] text-[#0B1F3A] font-bold h-12 px-7 shadow-lg neon-glow transition-all"
                       onClick={()=>nav("/products")} data-testid="hero-explore-btn">
                 Explore all products<ArrowRight size={16} className="ml-1"/>
               </Button>
@@ -166,11 +174,11 @@ export default function LandingPage() {
             </div>
 
             {/* Stat strip */}
-            <div className="mt-10 grid grid-cols-4 gap-4 max-w-2xl">
-              <Stat n="40+" l="Lender partners" c="#FFD84D"/>
-              <Stat n="₹2,500 Cr+" l="Disbursed" c="#16A981"/>
-              <Stat n="15" l="Debt products" c="#4C9EEB"/>
-              <Stat n="4.8/5" l="Client rating" c="#FF9F5A"/>
+            <div className="mt-10 grid grid-cols-4 gap-4 max-w-2xl" data-testid="hero-stat-strip">
+              <Stat n="40+" l="Lender partners" c="#FFD84D" testid="stat-lenders"/>
+              <Stat n="₹2,500 Cr+" l="Disbursed" c="#FF6B4E" testid="stat-disbursed"/>
+              <Stat n="15" l="Debt products" c="#4C9EEB" testid="stat-products"/>
+              <Stat n="4.8/5" l="Client rating" c="#FF9F5A" testid="stat-rating"/>
             </div>
           </div>
 
@@ -178,43 +186,43 @@ export default function LandingPage() {
           <div className="lg:col-span-5">
             <div className="relative">
               {/* neon liquid halo */}
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-[#DFFF3B]/40 to-[#00FFE1]/25 blur-2xl opacity-80 liquid-blob"/>
-              <div className="relative glass-strong rounded-2xl border border-white/25 p-6 text-[#0F3D2E]" data-testid="hero-quick-apply"
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-[#FFD84D]/40 to-[#00FFE1]/25 blur-2xl opacity-80 liquid-blob"/>
+              <div className="relative glass-strong rounded-2xl border border-white/25 p-6 text-[#0B1F3A]" data-testid="hero-quick-apply"
                    style={{background:"linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.78))"}}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 rounded-full bg-[#16A981] animate-pulse"/>
-                  <div className="text-[10.5px] uppercase tracking-widest text-[#16A981] font-bold">Instant call back</div>
+                  <span className="w-2 h-2 rounded-full bg-[#FF6B4E] animate-pulse"/>
+                  <div className="text-[10.5px] uppercase tracking-widest text-[#FF6B4E] font-bold">Instant call back</div>
                 </div>
                 <div className="font-display text-2xl font-bold">Tell us what you need</div>
-                <div className="text-xs text-[#0F3D2E]/60 mt-1">Rates shared in under an hour on weekdays.</div>
+                <div className="text-xs text-[#0B1F3A]/60 mt-1">Rates shared in under an hour on weekdays.</div>
 
                 <div className="mt-4 space-y-3">
                   <div>
-                    <label className="text-xs font-semibold text-[#0F3D2E]/70">I want a</label>
+                    <label className="text-xs font-semibold text-[#0B1F3A]/70">I want a</label>
                     <select value={form.product} onChange={e=>setForm({...form, product:e.target.value})}
-                      className="w-full h-10 mt-1 px-3 rounded-md border border-[#0F3D2E]/15 bg-white text-sm focus:outline-none focus:border-[#16A981]"
+                      className="w-full h-10 mt-1 px-3 rounded-md border border-[#0B1F3A]/15 bg-white text-sm focus:outline-none focus:border-[#FF6B4E]"
                       data-testid="hero-product-select">
                       <option value="">Pick a product…</option>
                       {products.map(p => <option key={p.slug} value={p.slug}>{p.title}</option>)}
                     </select>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div><label className="text-xs font-semibold text-[#0F3D2E]/70">Your name</label>
-                      <Input value={form.name} onChange={e=>setForm({...form, name:e.target.value})} data-testid="hero-name" className="border-[#0F3D2E]/15 focus-visible:ring-[#16A981]"/></div>
-                    <div><label className="text-xs font-semibold text-[#0F3D2E]/70">Mobile</label>
-                      <Input value={form.mobile} onChange={e=>setForm({...form, mobile:e.target.value})} data-testid="hero-mobile" className="border-[#0F3D2E]/15 focus-visible:ring-[#16A981]"/></div>
+                    <div><label className="text-xs font-semibold text-[#0B1F3A]/70">Your name</label>
+                      <Input value={form.name} onChange={e=>setForm({...form, name:e.target.value})} data-testid="hero-name" className="border-[#0B1F3A]/15 focus-visible:ring-[#FF6B4E]"/></div>
+                    <div><label className="text-xs font-semibold text-[#0B1F3A]/70">Mobile</label>
+                      <Input value={form.mobile} onChange={e=>setForm({...form, mobile:e.target.value})} data-testid="hero-mobile" className="border-[#0B1F3A]/15 focus-visible:ring-[#FF6B4E]"/></div>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-[#0F3D2E]/70">Amount required (₹)</label>
-                    <Input type="number" value={form.amount} onChange={e=>setForm({...form, amount:Number(e.target.value)})} data-testid="hero-amount" className="border-[#0F3D2E]/15 focus-visible:ring-[#16A981]"/>
-                    <div className="mt-1 text-sm num text-[#16A981] font-semibold">{inr(form.amount)}</div>
+                    <label className="text-xs font-semibold text-[#0B1F3A]/70">Amount required (₹)</label>
+                    <Input type="number" value={form.amount} onChange={e=>setForm({...form, amount:Number(e.target.value)})} data-testid="hero-amount" className="border-[#0B1F3A]/15 focus-visible:ring-[#FF6B4E]"/>
+                    <div className="mt-1 text-sm num text-[#FF6B4E] font-semibold">{inr(form.amount)}</div>
                   </div>
-                  <Button className="w-full bg-gradient-to-r from-[#0F3D2E] to-[#1F5B4A] hover:from-[#0F3D2E] hover:to-[#0F3D2E] text-white h-11 font-semibold" onClick={submit} data-testid="hero-submit">
+                  <Button className="w-full bg-gradient-to-r from-[#0B1F3A] to-[#1B3A6B] hover:from-[#0B1F3A] hover:to-[#0B1F3A] text-white h-11 font-semibold" onClick={submit} data-testid="hero-submit">
                     Get my personalised quote<ArrowRight size={16} className="ml-1"/>
                   </Button>
-                  <div className="flex items-center gap-3 text-xs text-[#0F3D2E]/50 pt-1">
-                    <div className="flex items-center gap-1"><ShieldCheck size={12} className="text-[#16A981]"/>No credit pull</div>
-                    <div className="flex items-center gap-1"><Clock size={12} className="text-[#16A981]"/>Reply in &lt;1 hour</div>
+                  <div className="flex items-center gap-3 text-xs text-[#0B1F3A]/50 pt-1">
+                    <div className="flex items-center gap-1"><ShieldCheck size={12} className="text-[#FF6B4E]"/>No credit pull</div>
+                    <div className="flex items-center gap-1"><Clock size={12} className="text-[#FF6B4E]"/>Reply in &lt;1 hour</div>
                   </div>
                 </div>
               </div>
@@ -236,25 +244,25 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-6 py-16" id="products">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-10 gap-3">
           <div>
-            <div className="text-xs uppercase tracking-widest text-[#16A981] font-bold">Products</div>
-            <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0F3D2E] mt-1">15 ways to finance your ambition</h2>
-            <p className="text-[#0F3D2E]/60 mt-2 max-w-2xl">From ₹50k personal loans to ₹500 Cr structured deals — pick the product, we do the rest.</p>
+            <div className="text-xs uppercase tracking-widest text-[#FF6B4E] font-bold">Products</div>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0B1F3A] mt-1">15 ways to finance your ambition</h2>
+            <p className="text-[#0B1F3A]/60 mt-2 max-w-2xl">From ₹50k personal loans to ₹500 Cr structured deals — pick the product, we do the rest.</p>
           </div>
-          <Link to="/products" className="text-sm font-semibold text-[#16A981] hover:text-[#0F3D2E] flex items-center gap-1">View catalogue<ArrowRight size={14}/></Link>
+          <Link to="/products" className="text-sm font-semibold text-[#FF6B4E] hover:text-[#0B1F3A] flex items-center gap-1">View catalogue<ArrowRight size={14}/></Link>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" data-testid="product-grid">
           {products.slice(0,10).map(p => {
             const s = styleFor(p.slug);
             return (
               <Link key={p.slug} to={`/product/${p.slug}`} data-testid={`product-card-${p.slug}`}
-                    className="group relative bg-white rounded-2xl border border-[#0F3D2E]/8 overflow-hidden hover:shadow-xl hover:-translate-y-1 hover:border-transparent transition-all duration-200">
+                    className="group relative bg-white rounded-2xl border border-[#0B1F3A]/8 overflow-hidden hover:shadow-xl hover:-translate-y-1 hover:border-transparent transition-all duration-200">
                 <ProductArt slug={p.slug} tint={s.tint} accent={s.accent} size="md"/>
                 <div className="p-5 pt-4">
-                  <div className="font-display text-[15px] font-bold text-[#0F3D2E]">{p.title}</div>
-                  <div className="text-[11px] text-[#0F3D2E]/55 mt-0.5 line-clamp-2 leading-snug">{p.tagline}</div>
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#0F3D2E]/8">
+                  <div className="font-display text-[15px] font-bold text-[#0B1F3A]">{p.title}</div>
+                  <div className="text-[11px] text-[#0B1F3A]/55 mt-0.5 line-clamp-2 leading-snug">{p.tagline}</div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#0B1F3A]/8">
                     <div>
-                      <div className="text-[9.5px] uppercase tracking-wider text-[#0F3D2E]/50 font-bold">From</div>
+                      <div className="text-[9.5px] uppercase tracking-wider text-[#0B1F3A]/50 font-bold">From</div>
                       <div className="font-display text-lg font-bold num" style={{color:s.accent}}>{p.rate_from}%</div>
                     </div>
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition" style={{color:s.accent}}/>
@@ -271,24 +279,24 @@ export default function LandingPage() {
       {/* ==================================================================== */}
       {/* HOW IT WORKS — Urban-Money-style numbered process cards               */}
       {/* ==================================================================== */}
-      <section className="relative bg-[#0F3D2E] py-20 overflow-hidden text-white">
+      <section className="relative bg-[#0B1F3A] py-20 overflow-hidden text-white">
         <div className="absolute inset-0 bg-dot-grid opacity-40"/>
-        <div className="absolute -top-32 left-1/4 w-96 h-96 rounded-full bg-[#C6FF3B]/8 blur-3xl"/>
+        <div className="absolute -top-32 left-1/4 w-96 h-96 rounded-full bg-[#00D9FF]/8 blur-3xl"/>
         <div className="absolute -bottom-32 right-1/4 w-96 h-96 rounded-full bg-[#FFD84D]/8 blur-3xl"/>
         <div className="relative max-w-7xl mx-auto px-6">
           <div className="text-center mb-12">
-            <div className="text-xs uppercase tracking-widest text-[#C6FF3B] font-bold">How it works</div>
+            <div className="text-xs uppercase tracking-widest text-[#00D9FF] font-bold">How it works</div>
             <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mt-1">From application to disbursal in 3 steps</h2>
           </div>
 
           {/* connector line for desktop */}
-          <div className="hidden md:block absolute left-[15%] right-[15%] top-[62%] h-px bg-gradient-to-r from-transparent via-[#C6FF3B]/40 to-transparent"/>
+          <div className="hidden md:block absolute left-[15%] right-[15%] top-[62%] h-px bg-gradient-to-r from-transparent via-[#00D9FF]/40 to-transparent"/>
 
           <div className="grid md:grid-cols-3 gap-6 relative">
             {[
-              {step:"01", t:"Tell us your requirement", d:"Pick a product, share your amount and mobile. Takes 60 seconds.", icon:PhoneCall, color:"#C6FF3B"},
+              {step:"01", t:"Tell us your requirement", d:"Pick a product, share your amount and mobile. Takes 60 seconds.", icon:PhoneCall, color:"#00D9FF"},
               {step:"02", t:"We match you to lenders",  d:"Our credit team runs your case against 40+ banks & NBFCs and shortlists the sharpest quotes.", icon:TrendingUp, color:"#FFD84D"},
-              {step:"03", t:"You sanction & disburse",  d:"Pick an offer, we handle docs, mandate & disbursal. Success fee only on sanction.", icon:CheckCircle2, color:"#16A981"},
+              {step:"03", t:"You sanction & disburse",  d:"Pick an offer, we handle docs, mandate & disbursal. Success fee only on sanction.", icon:CheckCircle2, color:"#FF6B4E"},
             ].map((s, i) => {
               const Icon = s.icon;
               return (
@@ -297,7 +305,7 @@ export default function LandingPage() {
                   {/* huge step number background */}
                   <div className="absolute -top-4 right-4 font-display text-[80px] leading-none font-bold" style={{color:s.color, opacity:.12}}>{s.step}</div>
                   {/* icon chip */}
-                  <div className="relative w-12 h-12 rounded-xl flex items-center justify-center shadow-lg" style={{background:s.color, color: s.color === "#C6FF3B" || s.color === "#FFD84D" ? "#0F3D2E" : "white"}}>
+                  <div className="relative w-12 h-12 rounded-xl flex items-center justify-center shadow-lg" style={{background:s.color, color: s.color === "#00D9FF" || s.color === "#FFD84D" ? "#0B1F3A" : "white"}}>
                     <Icon size={22}/>
                   </div>
                   <div className="mt-4 flex items-center gap-2">
@@ -316,9 +324,9 @@ export default function LandingPage() {
       {/* EMI CALCULATOR — vibrant strip                                        */}
       {/* ==================================================================== */}
       <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F3D2E] via-[#12503C] to-[#0F3D2E] text-white p-8 lg:p-12">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B1F3A] via-[#132D5C] to-[#0B1F3A] text-white p-8 lg:p-12">
           <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-[#FFD84D]/25 blur-3xl"/>
-          <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-[#16A981]/25 blur-3xl"/>
+          <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-[#FF6B4E]/25 blur-3xl"/>
           <div className="relative grid lg:grid-cols-2 gap-8 items-center">
             <div>
               <div className="text-[10.5px] uppercase tracking-widest text-[#FFD84D] font-bold">EMI Calculator</div>
@@ -345,26 +353,26 @@ export default function LandingPage() {
             </div>
 
             <div className="grid gap-4">
-              <div className="bg-white rounded-2xl p-6 text-[#0F3D2E] shadow-xl">
-                <div className="text-[10.5px] uppercase tracking-widest text-[#16A981] font-bold">Monthly EMI</div>
-                <div className="font-display text-5xl font-bold num text-[#0F3D2E] mt-1" data-testid="emi-monthly">{inr(monthlyEmi)}</div>
-                <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-[#0F3D2E]/10">
+              <div className="bg-white rounded-2xl p-6 text-[#0B1F3A] shadow-xl">
+                <div className="text-[10.5px] uppercase tracking-widest text-[#FF6B4E] font-bold">Monthly EMI</div>
+                <div className="font-display text-5xl font-bold num text-[#0B1F3A] mt-1" data-testid="emi-monthly">{inr(monthlyEmi)}</div>
+                <div className="grid grid-cols-2 gap-4 mt-5 pt-5 border-t border-[#0B1F3A]/10">
                   <div>
-                    <div className="text-[10.5px] uppercase tracking-widest text-[#0F3D2E]/50 font-bold">Total interest</div>
+                    <div className="text-[10.5px] uppercase tracking-widest text-[#0B1F3A]/50 font-bold">Total interest</div>
                     <div className="font-display text-lg font-bold num text-[#D89B00]">{inr(totalInterest)}</div>
                   </div>
                   <div>
-                    <div className="text-[10.5px] uppercase tracking-widest text-[#0F3D2E]/50 font-bold">Total payable</div>
-                    <div className="font-display text-lg font-bold num text-[#0F3D2E]">{inr(totalPayable)}</div>
+                    <div className="text-[10.5px] uppercase tracking-widest text-[#0B1F3A]/50 font-bold">Total payable</div>
+                    <div className="font-display text-lg font-bold num text-[#0B1F3A]">{inr(totalPayable)}</div>
                   </div>
                 </div>
-                <Button className="w-full mt-5 bg-[#16A981] hover:bg-[#0F8B6B] text-white h-11 font-semibold" onClick={()=>nav("/apply")}>
+                <Button className="w-full mt-5 bg-[#FF6B4E] hover:bg-[#E85A3D] text-white h-11 font-semibold" onClick={()=>nav("/apply")}>
                   Get real quotes now<ArrowRight size={16} className="ml-1"/>
                 </Button>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  {l:"Zero prepay penalty", i:CheckCircle2, c:"#16A981"},
+                  {l:"Zero prepay penalty", i:CheckCircle2, c:"#FF6B4E"},
                   {l:"No hidden charges", i:CheckCircle2, c:"#FFD84D"},
                   {l:"Personalised offers", i:CheckCircle2, c:"#4C9EEB"},
                 ].map((x,i)=> {
@@ -381,20 +389,43 @@ export default function LandingPage() {
       </section>
 
       {/* ==================================================================== */}
-      {/* LENDER LOGO WALL                                                      */}
+      {/* LENDER LOGO WALL — Massive 100s of partners                          */}
       {/* ==================================================================== */}
-      <section className="bg-white py-14 border-y border-[#0F3D2E]/8">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-8">
-            <div className="text-[10.5px] uppercase tracking-widest text-[#16A981] font-bold">Trusted network</div>
-            <div className="font-display text-2xl sm:text-3xl font-bold text-[#0F3D2E] mt-1">Our lender partners</div>
+      <section id="partners" className="bg-white py-16 border-y border-[#0B1F3A]/8 relative overflow-hidden" data-testid="lender-wall">
+        <div className="absolute inset-0 bg-dot-grid opacity-30"/>
+        <div className="max-w-7xl mx-auto px-6 relative">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-10">
+            <div>
+              <div className="text-[10.5px] uppercase tracking-widest text-[#FF6B4E] font-bold">Trusted network</div>
+              <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0B1F3A] mt-1">A lender for every case.</h2>
+              <p className="text-[#0B1F3A]/60 mt-2 max-w-xl text-sm">From India's largest scheduled banks to specialist NBFCs, small finance banks, and private credit funds — we place your deal where it fits sharpest.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-[#FFF7C2] border border-[#FFD84D]/50 px-4 py-2 rounded-full flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-[#D89B00] animate-pulse"/>
+                <span className="font-display font-bold text-[#8A5A00] num text-sm">{LENDER_COUNT_LABEL}</span>
+              </div>
+              <div className="hidden md:block bg-[#FFE4DE] border border-[#FF6B4E]/40 px-4 py-2 rounded-full">
+                <span className="font-display font-bold text-[#FF6B4E] text-sm num">₹2,500 Cr+ disbursed</span>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {LENDER_LOGOS.map(l => (
-              <div key={l} className="h-16 rounded-lg border border-[#0F3D2E]/10 flex items-center justify-center bg-[#FAFAF7] hover:border-[#16A981]/40 hover:bg-white transition">
-                <span className="font-display text-lg font-bold text-[#0F3D2E]/70 tracking-wide">{l}</span>
+
+          {/* logo grid — 6 cols on md, 8 on xl for a dense wall */}
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 xl:grid-cols-8 gap-2.5">
+            {LENDER_LOGOS.map((l, i) => (
+              <div key={l} data-testid={`lender-logo-${i}`}
+                   className="h-14 md:h-16 rounded-lg border border-[#0B1F3A]/10 flex items-center justify-center bg-[#FAFAF7] px-2 hover:border-[#FF6B4E]/50 hover:bg-white hover:shadow-md hover:-translate-y-0.5 transition-all group">
+                <span className="font-display text-[11px] md:text-[12.5px] font-bold text-[#0B1F3A]/70 group-hover:text-[#0B1F3A] tracking-tight text-center leading-tight">{l}</span>
               </div>
             ))}
+          </div>
+
+          {/* +more chip footer */}
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-[#0B1F3A]/55">
+            <span className="inline-flex items-center gap-1.5 bg-[#0B1F3A]/5 border border-[#0B1F3A]/10 px-3 py-1.5 rounded-full font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B4E]"/> + 60 more partners onboarding this quarter
+            </span>
           </div>
         </div>
       </section>
@@ -402,7 +433,7 @@ export default function LandingPage() {
       {/* ==================================================================== */}
       {/* WHY CORPZO — dark green band with gold icons                          */}
       {/* ==================================================================== */}
-      <section className="relative bg-[#0F3D2E] text-white py-20 overflow-hidden">
+      <section className="relative bg-[#0B1F3A] text-white py-20 overflow-hidden">
         <div className="absolute inset-y-0 right-0 w-1/3 opacity-30" style={{background:"radial-gradient(circle at right, rgba(255,216,77,.35), transparent 70%)"}}/>
         <div className="max-w-7xl mx-auto px-6 relative">
           <div className="mb-12 max-w-2xl">
@@ -412,7 +443,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-4 gap-6">
             {[
               {i:ShieldCheck, t:"40+ lenders, one process", b:"One application. We negotiate across banks & NBFCs so you don't chase RMs.", c:"#FFD84D"},
-              {i:Zap,         t:"Real credit team",         b:"Ex-bankers structure your case — CMA, projections, DPRs, valuations.",       c:"#16A981"},
+              {i:Zap,         t:"Real credit team",         b:"Ex-bankers structure your case — CMA, projections, DPRs, valuations.",       c:"#FF6B4E"},
               {i:Award,       t:"Best-in-market rates",     b:"Independent, unbiased. We surface the sharpest quote, not the highest commission.", c:"#4C9EEB"},
               {i:Users,       t:"Zero cost until sanction", b:"You only pay a success fee when your loan is sanctioned — nothing before.", c:"#FF9F5A"},
             ].map((f, i) => {
@@ -435,8 +466,8 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="flex items-end justify-between mb-10">
           <div>
-            <div className="text-xs uppercase tracking-widest text-[#16A981] font-bold">Client stories</div>
-            <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0F3D2E] mt-1">Borrowers pick CorpZo, again.</h2>
+            <div className="text-xs uppercase tracking-widest text-[#FF6B4E] font-bold">Client stories</div>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0B1F3A] mt-1">Borrowers pick CorpZo, again.</h2>
           </div>
           <div className="hidden md:flex items-center gap-2 bg-[#FFF7C2] border border-[#FFD84D]/50 px-4 py-2 rounded-full">
             <div className="flex">{[...Array(5)].map((_,i)=><Star key={i} size={14} className="fill-[#D89B00] text-[#D89B00]"/>)}</div>
@@ -446,13 +477,13 @@ export default function LandingPage() {
         </div>
         <div className="grid md:grid-cols-3 gap-5">
           {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="bg-white border border-[#0F3D2E]/10 rounded-2xl p-6 hover:border-[#16A981]/40 hover:shadow-lg transition relative overflow-hidden">
+            <div key={i} className="bg-white border border-[#0B1F3A]/10 rounded-2xl p-6 hover:border-[#FF6B4E]/40 hover:shadow-lg transition relative overflow-hidden">
               <div className="absolute top-4 right-6 text-6xl leading-none text-[#FFD84D] font-display">"</div>
               <div className="flex mb-3">{[...Array(t.rating)].map((_,i)=><Star key={i} size={14} className="fill-[#D89B00] text-[#D89B00]"/>)}</div>
-              <p className="text-[#0F3D2E]/85 leading-relaxed">{t.quote}</p>
-              <div className="mt-5 pt-4 border-t border-[#0F3D2E]/8 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#16A981] to-[#0F3D2E] text-white flex items-center justify-center font-display font-bold">{t.name[0]}</div>
-                <div><div className="font-semibold text-[#0F3D2E] text-sm">{t.name}</div><div className="text-xs text-[#0F3D2E]/55">{t.role}</div></div>
+              <p className="text-[#0B1F3A]/85 leading-relaxed">{t.quote}</p>
+              <div className="mt-5 pt-4 border-t border-[#0B1F3A]/8 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FF6B4E] to-[#0B1F3A] text-white flex items-center justify-center font-display font-bold">{t.name[0]}</div>
+                <div><div className="font-semibold text-[#0B1F3A] text-sm">{t.name}</div><div className="text-xs text-[#0B1F3A]/55">{t.role}</div></div>
               </div>
             </div>
           ))}
@@ -462,22 +493,22 @@ export default function LandingPage() {
       {/* ==================================================================== */}
       {/* FAQ                                                                   */}
       {/* ==================================================================== */}
-      <section className="bg-[#F1F7F3] py-16">
+      <section className="bg-[#F2F5FA] py-16">
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-8">
-            <div className="text-xs uppercase tracking-widest text-[#16A981] font-bold">FAQ</div>
-            <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0F3D2E] mt-1">Everything you wanted to ask</h2>
+            <div className="text-xs uppercase tracking-widest text-[#FF6B4E] font-bold">FAQ</div>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold text-[#0B1F3A] mt-1">Everything you wanted to ask</h2>
           </div>
           <div className="space-y-3">
             {FAQS.map((f, i) => (
               <button key={i} onClick={()=>setOpenFaq(openFaq===i?-1:i)}
-                className="w-full text-left bg-white border border-[#0F3D2E]/10 rounded-xl p-5 hover:border-[#16A981]/40 transition"
+                className="w-full text-left bg-white border border-[#0B1F3A]/10 rounded-xl p-5 hover:border-[#FF6B4E]/40 transition"
                 data-testid={`faq-${i}`}>
                 <div className="flex items-center justify-between gap-4">
-                  <div className="font-display text-[15px] font-bold text-[#0F3D2E]">{f.q}</div>
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center transition ${openFaq===i?"bg-[#16A981] text-white rotate-45":"bg-[#F1F7F3] text-[#0F3D2E]"}`}>+</div>
+                  <div className="font-display text-[15px] font-bold text-[#0B1F3A]">{f.q}</div>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center transition ${openFaq===i?"bg-[#FF6B4E] text-white rotate-45":"bg-[#F2F5FA] text-[#0B1F3A]"}`}>+</div>
                 </div>
-                {openFaq===i && <p className="text-sm text-[#0F3D2E]/70 mt-3 leading-relaxed">{f.a}</p>}
+                {openFaq===i && <p className="text-sm text-[#0B1F3A]/70 mt-3 leading-relaxed">{f.a}</p>}
               </button>
             ))}
           </div>
@@ -489,14 +520,14 @@ export default function LandingPage() {
       {/* ==================================================================== */}
       <section className="max-w-7xl mx-auto px-6 py-16">
         <div className="relative overflow-hidden rounded-3xl px-8 py-14 text-white flex flex-col md:flex-row items-center justify-between gap-6"
-             style={{background:"linear-gradient(115deg, #0F3D2E 0%, #16A981 45%, #FFD84D 130%)"}}>
+             style={{background:"linear-gradient(115deg, #0B1F3A 0%, #FF6B4E 45%, #FFD84D 130%)"}}>
           <div className="absolute -right-32 -top-32 w-96 h-96 rounded-full bg-white/10 blur-3xl"/>
           <div className="relative">
             <div className="text-[10.5px] uppercase tracking-widest text-[#FFD84D] font-bold">Ready when you are</div>
             <div className="font-display text-3xl sm:text-4xl font-bold text-white mt-1">Compare rates. Get sanctioned.</div>
             <div className="text-white/85 mt-1">Personalised offers from 40+ lenders in under an hour.</div>
           </div>
-          <Button className="relative bg-white hover:bg-[#FFD84D] text-[#0F3D2E] font-bold h-12 px-7 shadow-lg" onClick={()=>nav("/apply")}>
+          <Button className="relative bg-white hover:bg-[#FFD84D] text-[#0B1F3A] font-bold h-12 px-7 shadow-lg" onClick={()=>nav("/apply")}>
             Start free application<ArrowRight size={16} className="ml-1"/>
           </Button>
         </div>
@@ -505,8 +536,8 @@ export default function LandingPage() {
   );
 }
 
-function Stat({ n, l, c }) {
-  return <div>
+function Stat({ n, l, c, testid }) {
+  return <div data-testid={testid}>
     <div className="font-display text-2xl font-bold num" style={{color:c}}>{n}</div>
     <div className="text-xs text-white/60 uppercase tracking-wider mt-1">{l}</div>
   </div>;

@@ -181,34 +181,34 @@ export default function CaseDetail() {
         <TabsContent value="documents">
           {/* Doc deficiency / advisory opportunities strip */}
           {deficiency && (
-            <div className="mb-4 bg-gradient-to-r from-[#FFF3D6] via-white to-[#E0F5EC] border border-[#FFD84D]/40 rounded-xl p-4" data-testid="doc-deficiency-strip">
+            <div className="mb-4 bg-gradient-to-r from-[#FFF3D6] via-white to-[#FFE4DE] border border-[#FFD84D]/40 rounded-xl p-4" data-testid="doc-deficiency-strip">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-[10.5px] uppercase tracking-widest text-[#8A6600] font-bold">Doc completeness · {deficiency.present_count}/{deficiency.required_count}</div>
-                  <div className="font-display text-lg font-bold text-[#0F3D2E] mt-0.5">
+                  <div className="font-display text-lg font-bold text-[#0B1F3A] mt-0.5">
                     {deficiency.missing.length === 0 ? "All required categories present ✓" : `${deficiency.missing.length} missing → billable CorpZo services`}
                   </div>
-                  <div className="text-xs text-[#0F3D2E]/60 mt-0.5">Convert any missing category into an advisory opportunity your team can bill.</div>
+                  <div className="text-xs text-[#0B1F3A]/60 mt-0.5">Convert any missing category into an advisory opportunity your team can bill.</div>
                 </div>
                 <div className="w-40">
-                  <div className="h-2 bg-[#0F3D2E]/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#16A981] to-[#FFD84D]" style={{width: `${(deficiency.present_count/deficiency.required_count)*100}%`}}/>
+                  <div className="h-2 bg-[#0B1F3A]/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[#FF6B4E] to-[#FFD84D]" style={{width: `${(deficiency.present_count/deficiency.required_count)*100}%`}}/>
                   </div>
                 </div>
               </div>
               {deficiency.missing.length > 0 && (
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                   {deficiency.missing.map(m => (
-                    <div key={m.category} className="bg-white border border-[#0F3D2E]/10 rounded-lg p-3 flex items-center justify-between gap-2" data-testid={`deficient-${m.category.replace(/\W/g,'-')}`}>
+                    <div key={m.category} className="bg-white border border-[#0B1F3A]/10 rounded-lg p-3 flex items-center justify-between gap-2" data-testid={`deficient-${m.category.replace(/\W/g,'-')}`}>
                       <div className="min-w-0">
                         <div className="text-[10.5px] uppercase tracking-wider text-[#8A6600] font-bold">{m.category}</div>
-                        <div className="text-xs font-semibold text-[#0F3D2E] truncate">{m.service_name}</div>
-                        <div className="text-xs text-[#0F3D2E]/55 num">Est. {inr(m.estimated_fee)} · {m.sla_days}d SLA</div>
+                        <div className="text-xs font-semibold text-[#0B1F3A] truncate">{m.service_name}</div>
+                        <div className="text-xs text-[#0B1F3A]/55 num">Est. {inr(m.estimated_fee)} · {m.sla_days}d SLA</div>
                       </div>
                       {m.already_opportunity ? (
                         <span className="pill pill-green shrink-0">Created</span>
                       ) : (
-                        <Button size="sm" className="shrink-0 h-7 px-2 text-xs bg-[#1F5B4A] hover:bg-[#0F3D2E] text-white" onClick={()=>createOpportunity(m.category)} data-testid={`create-opp-${m.category.replace(/\W/g,'-')}`}>
+                        <Button size="sm" className="shrink-0 h-7 px-2 text-xs bg-[#1B3A6B] hover:bg-[#0B1F3A] text-white" onClick={()=>createOpportunity(m.category)} data-testid={`create-opp-${m.category.replace(/\W/g,'-')}`}>
                           <Plus size={12} className="mr-0.5"/>Bill it
                         </Button>
                       )}

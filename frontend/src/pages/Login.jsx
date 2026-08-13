@@ -10,9 +10,9 @@ export default function Login() {
   };
 
   return (
-    <div className="h-screen flex bg-[#0F3D2E] text-white overflow-hidden relative" data-testid="login-page">
+    <div className="h-screen flex bg-[#0B1F3A] text-white overflow-hidden relative" data-testid="login-page">
       {/* neon aurora glows */}
-      <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-[#DFFF3B]/20 blur-3xl liquid-blob"/>
+      <div className="absolute -top-40 -left-40 w-[520px] h-[520px] rounded-full bg-[#FFD84D]/20 blur-3xl liquid-blob"/>
       <div className="absolute -bottom-56 -right-40 w-[560px] h-[560px] rounded-full bg-[#00FFE1]/15 blur-3xl liquid-blob-2"/>
       <div className="absolute inset-0 bg-dot-grid opacity-40"/>
 
@@ -21,16 +21,16 @@ export default function Login() {
         <div>
           <Link to="/" className="inline-flex items-center gap-2 font-display text-2xl font-bold text-white" data-testid="brand-logo">
             <Landmark size={26} strokeWidth={1.8} className="text-[#FFD84D]"/> CORPZO
-            <span className="ml-2 text-[10.5px] uppercase tracking-widest text-[#DFFF3B]/80">Debt CRM</span>
+            <span className="ml-2 text-[10.5px] uppercase tracking-widest text-[#FFD84D]/80">Debt CRM</span>
           </Link>
           <p className="mt-3 text-white/60 text-sm">Origination · Credit · Facilitation · Payouts</p>
         </div>
 
         <div className="relative">
           {/* liquid blob illustration */}
-          <div className="absolute -top-16 -left-12 w-72 h-72 bg-gradient-to-br from-[#DFFF3B]/40 to-[#00FFE1]/30 blur-2xl liquid-blob opacity-70"/>
+          <div className="absolute -top-16 -left-12 w-72 h-72 bg-gradient-to-br from-[#FFD84D]/40 to-[#00FFE1]/30 blur-2xl liquid-blob opacity-70"/>
           <div className="relative">
-            <div className="inline-flex items-center gap-2 bg-white/8 backdrop-blur-xl border border-white/15 text-[#DFFF3B] text-[10.5px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
+            <div className="inline-flex items-center gap-2 bg-white/8 backdrop-blur-xl border border-white/15 text-[#FFD84D] text-[10.5px] font-bold uppercase tracking-widest px-3 py-1.5 rounded-full">
               <Sparkles size={12}/> Internal Workspace
             </div>
             <h1 className="font-display text-4xl leading-[1.05] font-bold mt-4 text-white">
@@ -69,7 +69,7 @@ export default function Login() {
             <Button
               data-testid="google-signin-btn"
               onClick={startAuth}
-              className="w-full h-12 bg-white hover:bg-[#DFFF3B] text-[#0F3D2E] font-semibold shadow-lg neon-glow-hover transition-all"
+              className="w-full h-12 bg-white hover:bg-[#FFD84D] text-[#0B1F3A] font-semibold shadow-lg neon-glow-hover transition-all"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" className="mr-2">
                 <path fill="#EA4335" d="M12 5c1.63 0 3.06.56 4.21 1.64l3.15-3.15C17.45 1.74 14.97.5 12 .5 7.7.5 3.99 2.98 2.18 6.59l3.66 2.84C6.71 6.87 9.14 5 12 5z"/>
@@ -81,7 +81,7 @@ export default function Login() {
             </Button>
             <div className="mt-6 pt-5 border-t border-white/10 text-xs text-white/50 space-y-1.5">
               <p>By continuing you agree to CorpZo&apos;s internal usage policy.</p>
-              <p className="text-white/40">Not a CorpZo employee? <Link to="/" className="text-[#DFFF3B] hover:underline">Explore products →</Link></p>
+              <p className="text-white/40">Not a CorpZo employee? <Link to="/" className="text-[#FFD84D] hover:underline">Explore products →</Link></p>
             </div>
           </div>
         </div>
@@ -92,8 +92,8 @@ export default function Login() {
 
 function FeatureChip({ icon: Icon, label }) {
   return (
-    <div className="glass-dark rounded-lg p-3 border border-white/10 hover:border-[#DFFF3B]/30 transition">
-      <Icon className="mb-1.5 text-[#DFFF3B]" size={16}/>
+    <div className="glass-dark rounded-lg p-3 border border-white/10 hover:border-[#FFD84D]/30 transition">
+      <Icon className="mb-1.5 text-[#FFD84D]" size={16}/>
       <div className="text-[11px] text-white/70">{label}</div>
     </div>
   );

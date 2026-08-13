@@ -181,7 +181,7 @@ const DEFAULT_SCENE = ({ accent }) => (
 );
 
 /** <ProductArt slug tint accent size /> */
-export default function ProductArt({ slug, tint = "#F1F7F3", accent = "#1F5B4A", className = "", size = "md" }) {
+export default function ProductArt({ slug, tint = "#F2F5FA", accent = "#1B3A6B", className = "", size = "md" }) {
   const Scene = scenes[slug] || DEFAULT_SCENE;
   const heights = { sm: 88, md: 128, lg: 200 };
   const h = heights[size] || 128;
