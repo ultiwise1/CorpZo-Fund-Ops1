@@ -41,23 +41,54 @@ export default function AllBanks() {
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#0B1F3A] to-[#132D5C] text-white py-16 border-b border-white/10">
         <div className="absolute -right-32 top-0 w-96 h-96 rounded-full bg-[#FFD84D]/15 blur-3xl"/>
-        <div className="max-w-7xl mx-auto px-6 relative">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10.5px] uppercase tracking-widest font-bold">
-            <Landmark size={12}/>Verified lender network
+        <div className="max-w-7xl mx-auto px-6 relative grid lg:grid-cols-[1.4fr_1fr] gap-10 items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[10.5px] uppercase tracking-widest font-bold">
+              <Landmark size={12}/>Verified lender network
+            </div>
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mt-4 leading-[1.03]">
+              {data ? <><span className="text-[#FFD84D] num">{data.total}+</span> banks &amp; NBFCs</> : "Every lender under one roof"}<br/>
+              work with CorpZo.
+            </h1>
+            <p className="text-white/75 mt-4 max-w-2xl">
+              From India&apos;s largest scheduled commercial banks to specialist NBFCs, small-finance banks, housing finance companies and private credit funds — we&apos;ll place your deal where it fits sharpest.
+            </p>
+            <div className="mt-6 max-w-md relative">
+              <Search size={16} className="absolute left-3 top-3.5 text-white/50"/>
+              <Input value={q} onChange={e => setQ(e.target.value)}
+                     placeholder="Search bank or NBFC (e.g. HDFC, SBI, Bajaj)"
+                     className="pl-9 bg-white/10 border-white/25 text-white placeholder:text-white/50 h-12 focus-visible:ring-[#FFD84D]"
+                     data-testid="banks-search"/>
+            </div>
           </div>
-          <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold mt-4 leading-[1.03]">
-            {data ? <><span className="text-[#FFD84D] num">{data.total}+</span> banks &amp; NBFCs</> : "Every lender under one roof"}<br/>
-            work with CorpZo.
-          </h1>
-          <p className="text-white/75 mt-4 max-w-2xl">
-            From India&apos;s largest scheduled commercial banks to specialist NBFCs, small-finance banks, housing finance companies and private credit funds — we&apos;ll place your deal where it fits sharpest.
-          </p>
-          <div className="mt-6 max-w-md relative">
-            <Search size={16} className="absolute left-3 top-3.5 text-white/50"/>
-            <Input value={q} onChange={e => setQ(e.target.value)}
-                   placeholder="Search bank or NBFC (e.g. HDFC, SBI, Bajaj)"
-                   className="pl-9 bg-white/10 border-white/25 text-white placeholder:text-white/50 h-12 focus-visible:ring-[#FFD84D]"
-                   data-testid="banks-search"/>
+          {/* Right — mini stats card */}
+          <div className="bg-white/5 backdrop-blur border border-white/15 rounded-2xl p-6" data-testid="banks-snapshot">
+            <div className="text-[10.5px] uppercase tracking-widest text-[#FFD84D] font-bold">Live network snapshot</div>
+            <div className="mt-3 grid grid-cols-2 gap-4">
+              {(data?.by_type || []).slice(0, 8).map(g => (
+                <div key={g.type} data-testid={`snapshot-${g.type.replace(/\s+/g, '-').toLowerCase()}`}>
+                  <div className="font-display text-2xl font-bold text-white num leading-none">{g.count}</div>
+                  <div className="text-[10.5px] text-white/60 uppercase tracking-widest mt-1 font-semibold">{g.type}</div>
+                </div>
+              ))}
+              {!data && Array.from({ length: 8 }).map((_, i) => (
+                <div key={i}>
+                  <div className="h-6 w-10 bg-white/10 rounded animate-pulse"/>
+                  <div className="h-3 w-16 bg-white/10 rounded animate-pulse mt-2"/>
+                </div>
+              ))}
+            </div>
+            {data && (
+              <div className="mt-5 pt-5 border-t border-white/10 flex items-center justify-between">
+                <div>
+                  <div className="text-[10.5px] uppercase tracking-widest text-white/50 font-semibold">Total partners</div>
+                  <div className="font-display text-3xl font-bold text-[#FFD84D] num" data-testid="banks-snapshot-total">{data.total}+</div>
+                </div>
+                <Link to="/apply" className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full bg-[#FF6B4E] hover:bg-[#E85A3D] text-white text-sm font-bold">
+                  Apply now<ArrowRight size={13}/>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </section>

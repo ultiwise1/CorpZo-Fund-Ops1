@@ -49,7 +49,7 @@ const LENDER_LOGOS = [
 const LENDER_COUNT_LABEL = "120+ Lender Partners";
 
 const FAQS = [
-  {q:"Is CorpZo a bank?", a:"No — we're a debt marketplace and credit consultancy. We work with 40+ RBI-regulated banks and NBFCs and structure your loan case for the best terms."},
+  {q:"Is CorpZo a bank?", a:"No — we're a debt marketplace and credit consultancy. We work with 100+ RBI-regulated banks and NBFCs and structure your loan case for the best terms."},
   {q:"Do I pay to apply?", a:"No. Applications and lender comparisons are free. You only pay a success fee once your loan is sanctioned."},
   {q:"How fast is disbursal?", a:"Personal loans in 24–72 hours. Home/LAP typically 10–15 days. Business & structured deals 3–6 weeks depending on complexity."},
   {q:"Is my data safe?", a:"Every document is encrypted in our vault. Nothing is shared with a lender without your explicit consent."},
@@ -60,9 +60,15 @@ export default function LandingPage() {
   const [form, setForm] = useState({ name: "", mobile: "", amount: 2500000, product: "" });
   const [emiForm, setEmiForm] = useState({ amount: 1000000, rate: 10.5, tenure: 60 });
   const [openFaq, setOpenFaq] = useState(0);
+  const [lenderCount, setLenderCount] = useState(120);
   const nav = useNavigate();
 
   useEffect(() => { api.get("/public/products").then(r => setProducts(r.data)); }, []);
+  useEffect(() => {
+    api.get("/public/lenders")
+      .then(r => setLenderCount(r.data.total))
+      .catch(() => {});
+  }, []);
 
   const monthlyEmi = useMemo(() => {
     const P = emiForm.amount, R = emiForm.rate/12/100, n = emiForm.tenure;
@@ -118,7 +124,7 @@ export default function LandingPage() {
                   <span className="text-white/25">•</span>
                   <Link to="/banks" className="inline-flex items-center gap-2 text-sm font-semibold hover:text-[#FFD84D] transition">
                     <span className="w-6 h-6 rounded-md bg-white/15 text-white flex items-center justify-center text-xs">🏦</span>
-                    120+ banks &amp; NBFCs on-board <span className="text-white/50">— view all →</span>
+                    {lenderCount}+ banks &amp; NBFCs on-board <span className="text-white/50">— view all →</span>
                   </Link>
                   <span className="text-white/25">•</span>
                 </div>
@@ -162,12 +168,12 @@ export default function LandingPage() {
           {/* LEFT — copy */}
           <div className="lg:col-span-7">
             {/* Hello chat bubble — Urban Money signature */}
-            <div className="inline-flex items-center gap-2 mb-4" data-testid="hero-hello-bubble">
+            <div className="flex items-center gap-2 flex-wrap mb-4" data-testid="hero-hello-bubble">
               <div className="relative bg-[#FFD84D] text-[#0B1F3A] px-3 py-1.5 rounded-2xl rounded-bl-sm font-display font-bold text-sm shadow-lg neon-glow">
                 Hello, borrower!
                 <span className="absolute -bottom-1 left-2 w-0 h-0 border-t-8 border-t-[#FFD84D] border-l-8 border-l-transparent"/>
               </div>
-              <div className="text-xs text-white/60">👋 We compare 40+ lenders for you</div>
+              <div className="text-xs text-white/60 whitespace-nowrap">👋 We compare {lenderCount}+ lenders for you</div>
             </div>
 
             <div className="inline-flex items-center gap-2 glass rounded-full px-3 py-1.5 text-[10.5px] font-semibold uppercase tracking-widest neon-gold">
@@ -175,7 +181,7 @@ export default function LandingPage() {
             </div>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-[64px] font-bold mt-5 leading-[1.03] text-white">
               One application.<br/>
-              <span className="neon-lime">40+ lenders.</span> <span className="whitespace-nowrap text-white">Best rate wins.</span>
+              <span className="neon-lime">{lenderCount}+ lenders.</span> <span className="whitespace-nowrap text-white">Best rate wins.</span>
             </h1>
             <p className="text-lg text-white/80 mt-5 max-w-xl">
               Compare offers from India&apos;s top banks &amp; NBFCs, get personalised quotes in minutes,
@@ -219,7 +225,7 @@ export default function LandingPage() {
 
             {/* Stat strip */}
             <div className="mt-10 grid grid-cols-4 gap-4 max-w-2xl" data-testid="hero-stat-strip">
-              <Stat n="40+" l="Lender partners" c="#FFD84D" testid="stat-lenders"/>
+              <Stat n={`${lenderCount}+`} l="Lender partners" c="#FFD84D" testid="stat-lenders"/>
               <Stat n="₹2,500 Cr+" l="Disbursed" c="#FF6B4E" testid="stat-disbursed"/>
               <Stat n="15" l="Debt products" c="#4C9EEB" testid="stat-products"/>
               <Stat n="4.8/5" l="Client rating" c="#FF9F5A" testid="stat-rating"/>
@@ -277,7 +283,7 @@ export default function LandingPage() {
         {/* Trust ribbon */}
         <div className="relative border-t border-white/10 bg-black/20">
           <div className="max-w-7xl mx-auto px-6 py-4 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-[10.5px] uppercase tracking-widest text-white/60">
-            <span>🔒 KYC-Based Onboarding</span>·<span>40+ Verified Lenders</span>·<span>256-bit Encrypted Vault</span>·<span>ISO 27001 Practices</span>·<span>Zero Cost Until Sanction</span>
+            <span>🔒 KYC-Based Onboarding</span>·<span>{lenderCount}+ Verified Lenders</span>·<span>256-bit Encrypted Vault</span>·<span>ISO 27001 Practices</span>·<span>Zero Cost Until Sanction</span>
           </div>
         </div>
       </section>
@@ -339,7 +345,7 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-3 gap-6 relative">
             {[
               {step:"01", t:"Tell us your requirement", d:"Pick a product, share your amount and mobile. Takes 60 seconds.", icon:PhoneCall, color:"#00D9FF"},
-              {step:"02", t:"We match you to lenders",  d:"Our credit team runs your case against 40+ banks & NBFCs and shortlists the sharpest quotes.", icon:TrendingUp, color:"#FFD84D"},
+              {step:"02", t:"We match you to lenders",  d:`Our credit team runs your case against ${lenderCount}+ banks & NBFCs and shortlists the sharpest quotes.`, icon:TrendingUp, color:"#FFD84D"},
               {step:"03", t:"You sanction & disburse",  d:"Pick an offer, we handle docs, mandate & disbursal. Success fee only on sanction.", icon:CheckCircle2, color:"#FF6B4E"},
             ].map((s, i) => {
               const Icon = s.icon;
@@ -375,7 +381,7 @@ export default function LandingPage() {
             <div>
               <div className="text-[10.5px] uppercase tracking-widest text-[#FFD84D] font-bold">EMI Calculator</div>
               <h2 className="font-display text-3xl sm:text-4xl font-bold text-white mt-1">Know your EMI before you apply</h2>
-              <p className="text-white/70 mt-2">Move the sliders. See what you'll pay every month. Then get real quotes from 40+ lenders in one click.</p>
+              <p className="text-white/70 mt-2">Move the sliders. See what you&apos;ll pay every month. Then get real quotes from {lenderCount}+ lenders in one click.</p>
 
               <div className="mt-8 space-y-5">
                 <RangeRow label="Loan amount" value={inr(emiForm.amount)}>
@@ -447,7 +453,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-3">
               <div className="bg-[#FFF7C2] border border-[#FFD84D]/50 px-4 py-2 rounded-full flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-[#D89B00] animate-pulse"/>
-                <span className="font-display font-bold text-[#8A5A00] num text-sm">{LENDER_COUNT_LABEL}</span>
+                <span className="font-display font-bold text-[#8A5A00] num text-sm">{lenderCount}+ Lender Partners</span>
               </div>
               <div className="hidden md:block bg-[#FFE4DE] border border-[#FF6B4E]/40 px-4 py-2 rounded-full">
                 <span className="font-display font-bold text-[#FF6B4E] text-sm num">₹2,500 Cr+ disbursed</span>
@@ -473,7 +479,7 @@ export default function LandingPage() {
             <Link to="/banks"
                   className="inline-flex items-center gap-1.5 bg-[#0B1F3A] hover:bg-[#081733] text-white px-4 py-2 rounded-full font-semibold transition"
                   data-testid="view-all-banks-cta">
-              View all {data?.total || 80}+ banks &amp; NBFCs <ArrowRight size={14}/>
+              View all {lenderCount}+ banks &amp; NBFCs <ArrowRight size={14}/>
             </Link>
           </div>
         </div>
@@ -521,7 +527,7 @@ export default function LandingPage() {
               We power <span className="text-[#FF6B4E]">100,000+</span><br/>debt advisors across India.
             </h2>
             <p className="text-[#0B1F3A]/75 mt-4 max-w-xl">
-              Turn your relationships into revenue. Refer files to CorpZo and earn best-in-market payouts on every sanctioned deal. Access 120+ lenders through one login, get real-time file status, and get paid every month on the dot.
+              Turn your relationships into revenue. Refer files to CorpZo and earn best-in-market payouts on every sanctioned deal. Access {lenderCount}+ lenders through one login, get real-time file status, and get paid every month on the dot.
             </p>
             <div className="mt-6 grid grid-cols-2 gap-3 max-w-lg">
               {[
@@ -578,7 +584,7 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-4 gap-6">
             {[
-              {i:ShieldCheck, t:"40+ lenders, one process", b:"One application. We negotiate across banks & NBFCs so you don't chase RMs.", c:"#FFD84D"},
+              {i:ShieldCheck, t:`${lenderCount}+ lenders, one process`, b:"One application. We negotiate across banks & NBFCs so you don't chase RMs.", c:"#FFD84D"},
               {i:Zap,         t:"Real credit team",         b:"Ex-bankers structure your case — CMA, projections, DPRs, valuations.",       c:"#FF6B4E"},
               {i:Award,       t:"Best-in-market rates",     b:"Independent, unbiased. We surface the sharpest quote, not the highest commission.", c:"#4C9EEB"},
               {i:Users,       t:"Zero cost until sanction", b:"You only pay a success fee when your loan is sanctioned — nothing before.", c:"#FF9F5A"},
@@ -661,7 +667,7 @@ export default function LandingPage() {
           <div className="relative">
             <div className="text-[10.5px] uppercase tracking-widest text-[#FFD84D] font-bold">Ready when you are</div>
             <div className="font-display text-3xl sm:text-4xl font-bold text-white mt-1">Compare rates. Get sanctioned.</div>
-            <div className="text-white/85 mt-1">Personalised offers from 40+ lenders in under an hour.</div>
+            <div className="text-white/85 mt-1">Personalised offers from {lenderCount}+ lenders in under an hour.</div>
           </div>
           <Button className="relative bg-white hover:bg-[#FFD84D] text-[#0B1F3A] font-bold h-12 px-7 shadow-lg" onClick={()=>nav("/apply")}>
             Start free application<ArrowRight size={16} className="ml-1"/>
