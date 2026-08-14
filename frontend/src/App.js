@@ -34,6 +34,7 @@ import AdminUsers from "@/pages/AdminUsers";
 import AdminAudit from "@/pages/AdminAudit";
 import AdminIntegrations from "@/pages/AdminIntegrations";
 import AdminSettings from "@/pages/AdminSettings";
+import AdminPermissions from "@/pages/AdminPermissions";
 import Renewals from "@/pages/Renewals";
 import LeadImport from "@/pages/LeadImport";
 import PartnerPortal from "@/pages/PartnerPortal";
@@ -45,6 +46,8 @@ import ProductsPage from "@/pages/public/ProductsPage";
 import ProductDetail from "@/pages/public/ProductDetail";
 import { Thanks, ApplyForm } from "@/pages/public/ApplyForm";
 import CustomerDashboard from "@/pages/public/CustomerDashboard";
+import AllBanks from "@/pages/public/AllBanks";
+import BecomePartner from "@/pages/public/BecomePartner";
 
 function AppRouter() {
   const location = useLocation();
@@ -64,6 +67,8 @@ function AppRoutes() {
       <Route path="/product/:slug" element={<ProductDetail/>}/>
       <Route path="/apply" element={<ApplyForm/>}/>
       <Route path="/apply/thanks" element={<Thanks/>}/>
+      <Route path="/banks" element={<AllBanks/>}/>
+      <Route path="/become-partner" element={<BecomePartner/>}/>
     </Route>
   );
 
@@ -142,6 +147,7 @@ function AppRoutes() {
         <Route path="/admin/audit" element={<AdminAudit/>}/>
         <Route path="/admin/integrations" element={<AdminIntegrations/>}/>
         <Route path="/admin/settings" element={<AdminSettings/>}/>
+        <Route path="/admin/permissions" element={<AdminPermissions/>}/>
         <Route path="*" element={<Navigate to="/dashboard" replace/>}/>
       </Route>
     </Routes>

@@ -270,3 +270,9 @@ h1, h2, h3, h4, h5, h6, .font-display {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 1px;
 }
+
+
+/* Offers ticker marquee */
+@keyframes marquee-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+.marquee { animation: marquee-scroll 42s linear infinite; }
+.marquee:hover { animation-play-state: paused; }

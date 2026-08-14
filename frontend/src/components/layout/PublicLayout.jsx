@@ -24,9 +24,10 @@ export function PublicNav({ user }) {
         </Link>
         <nav className="hidden md:flex items-center gap-6 text-sm text-[#0B1F3A]/72">
           <NavLink to="/products" className={({isActive})=>isActive?"text-[#0B1F3A] font-semibold":"hover:text-[#0B1F3A]"} data-testid="nav-public-products">Products</NavLink>
+          <NavLink to="/banks" className={({isActive})=>isActive?"text-[#0B1F3A] font-semibold":"hover:text-[#0B1F3A]"} data-testid="nav-public-banks">Banks</NavLink>
+          <NavLink to="/become-partner" className={({isActive})=>isActive?"text-[#0B1F3A] font-semibold":"hover:text-[#0B1F3A]"} data-testid="nav-public-become-partner">Become Partner</NavLink>
           <NavLink to="/calculators" className={({isActive})=>isActive?"text-[#0B1F3A] font-semibold":"hover:text-[#0B1F3A]"}>EMI Calculator</NavLink>
           <NavLink to="/apply" className={({isActive})=>isActive?"text-[#0B1F3A] font-semibold":"hover:text-[#0B1F3A]"}>Apply</NavLink>
-          <a href="#partners" className="hover:text-[#0B1F3A]">Partners</a>
         </nav>
         <div className="flex items-center gap-2">
           {user ? (
@@ -56,9 +57,10 @@ export function PublicNav({ user }) {
         <div className="md:hidden border-t border-[#0B1F3A]/10 bg-white" data-testid="mobile-menu">
           <div className="px-6 py-4 space-y-1">
             <MobileLink to="/products" onClick={closeAnd()} testid="mobile-nav-products">Products</MobileLink>
+            <MobileLink to="/banks" onClick={closeAnd()} testid="mobile-nav-banks">Banks</MobileLink>
+            <MobileLink to="/become-partner" onClick={closeAnd()} testid="mobile-nav-become-partner">Become Partner</MobileLink>
             <MobileLink to="/calculators" onClick={closeAnd()}>EMI Calculator</MobileLink>
             <MobileLink to="/apply" onClick={closeAnd()} testid="mobile-nav-apply">Apply</MobileLink>
-            <MobileLink to="/#partners" onClick={closeAnd()}>Partners</MobileLink>
             <div className="h-px bg-[#0B1F3A]/10 my-3"/>
             {user ? (
               user.role === "customer"

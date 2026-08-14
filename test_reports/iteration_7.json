@@ -1,0 +1,51 @@
+{
+  "summary": "Full re-test of iteration_6 defect fixes + the new public marketplace pages. Backend: added /app/backend/tests/test_iter7_public_and_fixes.py (25 tests) covering /api/public/lenders (82 lenders / 8 groups, no auth, no _id leak), /api/public/become-partner (200 + PA- id + persistence + 422 validation), the phantom-batch fix (2 consecutive run-now => 2nd returns batch_id:null/total 0 and first id is really persisted), permission-aware reads for a granted sales_agent (/partners/performance, /payouts, /payouts/{id}/csv, run-now all 200) and negative RBAC (plain sales_agent 403 on /users, /payouts, /partners/performance, run-now; unauth /users 401). Whole suite now 136/136 passing (ran twice, no flakes). Frontend Playwright: public landing (offers-ticker copy, 5 big-stat tiles all 52px, partner-recruit 100,000+, view-all-banks-cta), /banks (8 groups / 82 tiles / search filter / empty state / CTA links), /become-partner (hero stats, both calculator sliders reactive, form POST 200 + success toast with PA- id), public nav desktop + mobile, CRM RBAC with test_session_agent_ro (nav-permissions & nav-users hidden, forbidden panel on /admin/permissions, run-payout-btn and mark-paid hidden), AdminPermissions perms-loading row observed then 18 rows, release-commissions 1st click -> real batch + amber ring, 2nd click -> info toast and stays on /channel-partners. Regressions (iter4/5) verified: partner KPIs, detail modal + 6-month sparkline, CAM suggestions/PDF/template picker/save-template, global search, /opportunities, landing quick-apply. ALL requested fixes verified working. Only cosmetic/content issues remain.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/public/lenders", "issue": "Returns 82 lenders while the landing page advertises '120+ lender partners' (bs-lenders + ticker) and the lender-wall CTA says 'View all 80+ banks'. Three different numbers for the same claim across the public site."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BecomePartner submit success", "issue": "On success it navigates to /apply/thanks?partner=PA-... but the thanks page is the borrower page ('Our credit team has your enquiry and will call you within an hour', 'Track my application' -> customer portal) and ignores the ?partner param so no reference id is shown (compare ?lead= which does render the REFERENCE box). Aspiring partners get wrong copy and no application id on-screen.", "selector": "[data-testid=\"partner-submit-btn\"]", "priority": "MEDIUM"},
+      {"component": "Payouts.jsx (no-permission user)", "issue": "sales_agent without release_commissions still sees the Payouts sidebar item, gets a red 'Finance access only' toast on load, and the empty-state text tells them to 'Click Run payout batch now' — a button that is (correctly) hidden for them. Gate the nav item / soften the empty state.", "selector": "[data-testid=\"payouts-page\"]", "priority": "LOW"},
+      {"component": "LandingPage partner-recruit city grid", "issue": "The floating 'Active in 380+ cities' badge overlaps the KOL city tile and hides its '670 advisors' sub-text at 1920px.", "selector": "[data-testid=\"partner-recruit-section\"]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/banks", "issues": ["~100px empty white band between the orange CTA band and the footer — looks like an unfinished section"]},
+      {"screen": "/channel-partners", "issues": ["Attainment bar renders 555.8% (bar overflows to full width) for CP-0001 because target << disbursement — clamp to 100% visually", "2 leftover TEST_QA Wizard Partner rows (CP-IND-0014/0015) from previous iterations pollute the partner list and KPIs (7 partners instead of 5); run tests/cleanup_iter6.js"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter7_public_and_fixes.py",
+    "/app/backend/tests/test_iter6_permissions.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Make /apply/thanks partner-aware (read ?partner=, show PA- reference and partner-specific copy + 'Become partner' next steps) or add a dedicated /become-partner/thanks page.",
+    "Align the lender count claims: /public/lenders=82 vs landing '120+' vs CTA 'View all 80+ banks'.",
+    "Hide the Payouts sidebar item (and suppress the 'Finance access only' error toast) for users without payout read access; fix the empty-state copy.",
+    "Fix the 'Active in 380+ cities' badge overlap on the landing city grid and the white gap above the footer on /banks.",
+    "Clamp the partner attainment bar at 100% and clean leftover TEST_QA partner seed rows."
+  ],
+  "critical_code_review_comments": [
+    "AdminPermissions.jsx line 20: loadUsers() swallows the error into setUsers([]) so a 403/500 is indistinguishable from 'no users'; the UI guard only saves it because perms are checked separately — surface the error state.",
+    "Payouts.jsx line 17: any /payouts failure shows the hardcoded 'Finance access only' toast regardless of status code (500 would read as an auth error).",
+    "AllBanks.jsx line 22: api.get('/public/lenders') has no .catch — a network failure leaves the page stuck on 'Loading lender directory…' forever with no error state.",
+    "server.py: PUBLIC_LENDER_DIRECTORY is a hardcoded 82-entry list inside a 2986-line server.py; server.py should be split into routers and this static data moved to a data module.",
+    "LandingPage.jsx is 699 lines with inline marketing copy/stat literals duplicated with BecomePartner.jsx (100,000+/2.5%/120+) — extract shared constants so numbers cannot drift."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter7_public_and_fixes.py",
+    "/app/backend/tests/test_iter6_permissions.py"
+  ],
+  "success_rate": {"backend": "100% (136/136)", "frontend": "100% of requested flows (3 cosmetic/content defects)"},
+  "seed_data_creation": "Temporarily inserted cp_commission TEST_CM-QA-1 (CP-0001, 47.5k payable) to make the release-commissions first-click branch reachable; deleted it and the batch it created afterwards. Also deleted the TEST_ partner_applications and the TEST_QA Borrower lead created during UI tests. Sessions provisioned via tests/setup_qa_agents.js + tests/setup_qa_sessions.js.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "Bearer/cookie test_session_supertoken (super_admin), test_session_agent_ro (sales_agent no grants), test_session_agent_qa (grant/revoke target, uid user_test_agent_qa); /app/memory/test_credentials.md present and accurate.",
+  "context_for_next_testing_agent": "All iteration_6 defects (phantom batch_id, permission-aware /partners/performance + /payouts + csv, /users gating, Sidebar+route gating, AdminPermissions loading state, Payouts button gating, perms cache refresh) are FIXED and verified. New public pages /banks and /become-partner work unauthenticated. Remaining open items are cosmetic: /apply/thanks not partner-aware, lender-count inconsistency (82 vs 120+ vs 80+), Payouts nav visible to non-finance, badge overlap on landing city grid, /banks footer gap, attainment bar >100%. To rerun the release-commissions happy path you must first insert an eligible cp_commission (status approved, no batch_id) — the seed set is already fully batched.",
+  "rca_of_the_issue": "Not applicable — all previously reported root causes (early-return fabricating a batch_id, read endpoints hardcoding role lists, missing require_permission on /users, unguarded sidebar link/route) were correctly addressed at source and confirmed by both API and UI tests."
+}

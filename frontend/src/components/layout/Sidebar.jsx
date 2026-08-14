@@ -6,6 +6,7 @@ import {
   UsersRound, Handshake, Settings, ScrollText, Boxes, LogOut, Landmark, Search
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { usePermissions } from "@/lib/perms";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
@@ -43,13 +44,14 @@ const NAV = [
   { section: "Performance", items: [
     { to: "/employees", label: "Employees", icon: UsersRound, testid: "nav-employees" },
     { to: "/incentives", label: "Incentives", icon: Target, testid: "nav-incentives" },
-    { to: "/payouts", label: "Payouts", icon: HandCoins, testid: "nav-payouts" },
+    { to: "/payouts", label: "Payouts", icon: HandCoins, testid: "nav-payouts", perm: "release_commissions" },
     { to: "/reports", label: "Reports", icon: TrendingUp, testid: "nav-reports" },
     { to: "/renewals", label: "Renewal Radar", icon: Award, testid: "nav-renewals" },
     { to: "/opportunities", label: "Opportunities", icon: HandCoins, testid: "nav-opportunities" },
   ]},
   { section: "Administration", items: [
-    { to: "/admin/users", label: "Users & Roles", icon: Users, testid: "nav-users" },
+    { to: "/admin/users", label: "Users & Roles", icon: Users, testid: "nav-users", perm: "manage_users" },
+    { to: "/admin/permissions", label: "Permissions", icon: ShieldCheck, testid: "nav-permissions", perm: "manage_users" },
     { to: "/admin/audit", label: "Audit Logs", icon: ScrollText, testid: "nav-audit" },
     { to: "/admin/integrations", label: "Integrations", icon: Boxes, testid: "nav-integrations" },
     { to: "/admin/settings", label: "Settings", icon: Settings, testid: "nav-settings" },
@@ -58,8 +60,9 @@ const NAV = [
 
 export default function Sidebar({ user }) {
   const nav = useNavigate();
+  const perms = usePermissions();
   const logout = async () => {
-    try { await api.post("/auth/logout"); } catch {}
+    try { await api.post("/auth/logout"); } catch { /* ignore */ }
     nav("/login");
   };
 
@@ -77,7 +80,7 @@ export default function Sidebar({ user }) {
         {NAV.map((sec, i) => (
           <div key={i}>
             {sec.section && <div className="sidebar-section-title">{sec.section}</div>}
-            {sec.items.map((it) => {
+            {sec.items.filter(it => !it.perm || perms.has(it.perm)).map((it) => {
               const Icon = it.icon;
               return (
                 <NavLink

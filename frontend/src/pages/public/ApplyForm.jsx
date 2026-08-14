@@ -7,18 +7,35 @@ import { api } from "@/lib/api";
 export function Thanks() {
   const [sp] = useSearchParams();
   const lead = sp.get("lead");
+  const partner = sp.get("partner");
+  const isPartner = !!partner;
   return (
     <div className="max-w-3xl mx-auto px-6 py-24 text-center" data-testid="thanks-page">
       <div className="w-16 h-16 rounded-full bg-[#1B3A6B]/10 text-[#1B3A6B] flex items-center justify-center mx-auto"><CheckCircle2 size={30}/></div>
-      <h1 className="font-display text-3xl font-semibold text-[#0B1F3A] mt-4">Application received</h1>
-      <p className="text-[#0B1F3A]/70 mt-2">Our credit team has your enquiry and will call you within an hour on weekdays.</p>
-      {lead && <div className="mt-6 inline-block bg-white border border-[#0B1F3A]/10 rounded-lg px-4 py-3">
-        <div className="text-xs text-[#8A6600] uppercase tracking-widest">Reference</div>
-        <div className="mono text-[#0B1F3A] mt-0.5">{lead}</div>
+      <h1 className="font-display text-3xl font-semibold text-[#0B1F3A] mt-4">
+        {isPartner ? "Partner application received" : "Application received"}
+      </h1>
+      <p className="text-[#0B1F3A]/70 mt-2">
+        {isPartner
+          ? "Our channel-manager team has your interest and will call you within 1 business day to complete onboarding."
+          : "Our credit team has your enquiry and will call you within an hour on weekdays."}
+      </p>
+      {(lead || partner) && <div className="mt-6 inline-block bg-white border border-[#0B1F3A]/10 rounded-lg px-4 py-3" data-testid="thanks-reference">
+        <div className="text-xs text-[#8A6600] uppercase tracking-widest">{isPartner ? "Partner reference" : "Reference"}</div>
+        <div className="mono text-[#0B1F3A] mt-0.5">{lead || partner}</div>
       </div>}
-      <div className="mt-8 flex gap-3 justify-center">
-        <Link to="/products"><Button variant="outline" className="border-[#0B1F3A]/20 text-[#0B1F3A] hover:bg-[#0B1F3A]/5">Explore more products</Button></Link>
-        <Link to="/my"><Button className="bg-[#1B3A6B] hover:bg-[#0B1F3A] text-white">Track my application</Button></Link>
+      <div className="mt-8 flex gap-3 justify-center flex-wrap">
+        {isPartner ? (
+          <>
+            <Link to="/become-partner"><Button variant="outline" className="border-[#0B1F3A]/20 text-[#0B1F3A] hover:bg-[#0B1F3A]/5">Back to partner page</Button></Link>
+            <Link to="/products"><Button className="bg-[#1B3A6B] hover:bg-[#0B1F3A] text-white">Explore CorpZo products</Button></Link>
+          </>
+        ) : (
+          <>
+            <Link to="/products"><Button variant="outline" className="border-[#0B1F3A]/20 text-[#0B1F3A] hover:bg-[#0B1F3A]/5">Explore more products</Button></Link>
+            <Link to="/my"><Button className="bg-[#1B3A6B] hover:bg-[#0B1F3A] text-white">Track my application</Button></Link>
+          </>
+        )}
       </div>
     </div>
   );

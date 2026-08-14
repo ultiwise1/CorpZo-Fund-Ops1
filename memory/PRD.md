@@ -158,3 +158,31 @@ Lead • Client • Case • Employee • ChannelPartner • Document • PDForm
   - `seed_supplemental` idempotently backfills 3 current-month partner-linked disbursements + commissions so the Partner CRM v2 dashboard shows non-zero MTD activity on a fresh env (previously all partner rows read ₹0 because the only partner-linked cases had 2023 disbursement dates).
 - **Design polish** — partner detail dialog now includes an accessibility-compliant `DialogDescription`, and the AttainmentBar has its own row so long labels no longer collide with the % caption.
 - **Testing** — `iteration_5.json`: 17/17 new pytest cases pass, 8/8 requested UI flows pass, plus regression (public landing, weekly.xlsx/pdf, global search). Post-report fixes verified: current-month partner activity flows into KPIs (MTD ₹4.17 Cr, attainment 555.8%), flag validation returns 422 for malformed vs 200 for valid.
+
+
+## Iteration 10 (Feb 2026) — Permission System + CAM Templates + Partner Wizard
+- **Per-user permission overrides on top of role RBAC** (`server.py` PERMISSION_KEYS + DEFAULT_ROLE_PERMISSIONS + `has_permission` + `effective_permissions`):
+  - Six named keys: `release_commissions`, `mark_payout_paid`, `create_partner`, `edit_partner_target`, `publish_cam_template`, `manage_users`.
+  - New endpoints: `GET /api/permissions/keys`, `GET /api/me/permissions`, `GET /api/admin/users/{uid}/permissions`, `PUT /api/admin/users/{uid}/permissions`.
+  - New admin page `/admin/permissions` (`AdminPermissions.jsx`) with grant/revoke toggles per user; `usePermissions()` hook (`lib/perms.js`) + cache-refresh event bus.
+  - Retrofitted the following endpoints to use permission gates: `POST /payouts/run-now` (`release_commissions`), `POST /payouts/{id}/mark-paid` (`mark_payout_paid`), `POST /channel-partners` (`create_partner`), `PATCH /channel-partners/{uid}` (`edit_partner_target`), `POST/DELETE /cam-templates` (`publish_cam_template`), `GET /users` (`manage_users`), `GET /partners/performance` / `GET /payouts` / `GET /payouts/{id}/csv` allow either the historical role list OR the appropriate permission.
+  - Sidebar filters items by required perm; Payouts / Permissions / Users links now hide for users without the appropriate permission.
+  - Payouts `runNow` and ChannelPartners `releaseCommissions` no longer fabricate phantom batches — `_process_payout_batch()` returns `batch_id: null` when nothing is eligible and the UI branches accordingly (info toast, no route change).
+- **One-click "Release commissions"** button on `/channel-partners` (permission-gated) — creates a payout batch and jumps to `/payouts?batch=<id>` with the row highlighted in an amber ring.
+- **CAM Templates** (product-scoped):
+  - New collection `cam_templates` and endpoints `GET/POST/DELETE /api/cam-templates` (POST + DELETE require `publish_cam_template`).
+  - Templates snapshot only structural fields (ratios / positives / concerns / flags / recommendation / analyst comments) — PII is stripped.
+  - CAM tab now has **Load template** (product-filtered picker with Apply per row, delete for owners/publishers) and **Save as template** (dialog with name field).
+- **Partner Onboarding Wizard** — 3-step dialog on `/channel-partners` (KYC → Products & Geography → Commission & Target). Chip toggles for products (9) and geography (9). Only visible to users with `create_partner`. On submit, patches the monthly_target too.
+- **Public marketplace redesign**:
+  - **Offers ticker** at the top of `LandingPage.jsx` (`[data-testid=offers-ticker]`) — FREE CIBIL Score (₹499 struck to ₹0), Personal Loan @ 10.49%, Business Loans ₹5 L → ₹500 Cr · WC · TL · CC/OD · LAP, Home Loan @ 8.35%, "View all 114+ banks". CSS marquee that pauses on hover.
+  - **Big-number stats strip** with five 52-px hero tickers (lenders / disbursed / borrowers / channel partners / debt products) plus CTAs to `/banks` and `/become-partner`.
+  - **100,000+ channel partners** section with city grid, benefit cards and "Become our partner" CTA; the "Active in 380+ cities" badge is now docked below the grid (no more overlap).
+  - **/banks** page (`AllBanks.jsx`) — full lender directory grouped by type (Private Bank / PSU / Foreign / SFB / NBFC / HFC / Specialty / Private Credit — 8 groups), searchable, on the public `GET /api/public/lenders` endpoint (114 lenders). Includes an orange CTA band to `/apply` + `/become-partner`.
+  - **/become-partner** page (`BecomePartner.jsx`) — hero, benefits card, 4-step "how it works", earnings calculator (monthly disbursement × payout % → monthly + yearly), apply form + FAQ. Public `POST /api/public/become-partner` writes `db.partner_applications` and best-effort emails channel-manager users via Resend.
+  - `Thanks` page (`ApplyForm.jsx`) is now partner-aware — reads `?partner=` and renders "Partner application received" + partner-specific CTAs; `?lead=` still shows borrower copy.
+- **Server-side / seed hygiene**:
+  - `PUBLIC_LENDER_DIRECTORY` now holds 114 real Indian banks & NBFCs (private/PSU/foreign/SFB/NBFC/HFC/specialty/private credit).
+  - Cleaned up TEST_QA seed rows from previous test iterations.
+  - `AttainmentBar` (`ChannelPartners.jsx`) now clamps visual width at 100% AND displays "100%+ · target {n}% met" when overachievement is > 100%.
+- **Testing** — `iteration_6.json`: initial issues (phantom batch, RBAC leaks, no perm cache clear, missing loading state) all identified. `iteration_7.json`: 136/136 backend pytest, all UI flows PASS; the report's residual cosmetic items (lender-count drift, /apply/thanks partner-awareness, Payouts nav gating, badge overlap) were then fixed in this iteration.

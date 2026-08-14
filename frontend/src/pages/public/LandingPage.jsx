@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   ArrowRight, ShieldCheck, Zap, Award, Users, Star,
   Home, Briefcase, User, Building2, Factory, GraduationCap, Landmark, Coins,
-  Percent, Clock, CheckCircle2, TrendingUp, PhoneCall, Truck, Cog, Layers, Gem
+  Percent, Clock, CheckCircle2, TrendingUp, PhoneCall, Truck, Cog, Layers, Gem, Handshake
 } from "lucide-react";
 import { toast } from "sonner";
 import ProductArt from "@/components/ProductArt";
@@ -83,6 +83,50 @@ export default function LandingPage() {
 
   return (
     <div data-testid="landing-page" className="text-[#0B1F3A]">
+
+      {/* ==================================================================== */}
+      {/* OFFERS TICKER — hero-top marquee (Free CIBIL · PL @10.5% · Biz suite) */}
+      {/* ==================================================================== */}
+      <div className="relative overflow-hidden bg-[#0B1F3A] text-white border-b border-white/10" data-testid="offers-ticker">
+        <div className="max-w-7xl mx-auto px-6 py-2.5 flex items-center gap-3">
+          <div className="hidden sm:flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-full bg-[#FF6B4E]/15 border border-[#FF6B4E]/30 text-[10px] uppercase tracking-widest font-bold text-[#FF9F5A]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B4E] animate-pulse"/> Today&apos;s offers
+          </div>
+          <div className="relative flex-1 overflow-hidden">
+            <div className="flex gap-8 whitespace-nowrap marquee">
+              {[0, 1].map(loop => (
+                <div key={loop} className="flex items-center gap-8 shrink-0">
+                  <Link to="/product/personal-loan" className="inline-flex items-center gap-2 text-sm font-semibold hover:text-[#FFD84D] transition">
+                    <span className="w-6 h-6 rounded-md bg-[#22C55E]/25 text-[#22C55E] flex items-center justify-center text-xs">✓</span>
+                    FREE CIBIL Score <span className="line-through text-white/40 font-normal">₹499</span> <span className="text-[#FFD84D]">₹0</span>
+                  </Link>
+                  <span className="text-white/25">•</span>
+                  <Link to="/product/personal-loan" className="inline-flex items-center gap-2 text-sm font-semibold hover:text-[#FFD84D] transition">
+                    <span className="w-6 h-6 rounded-md bg-[#FF6B4E]/25 text-[#FF9F5A] flex items-center justify-center text-xs">₹</span>
+                    Benefit-loaded Personal Loan @ <span className="num text-[#FFD84D]">10.49%</span> onwards
+                  </Link>
+                  <span className="text-white/25">•</span>
+                  <Link to="/product/business-loan" className="inline-flex items-center gap-2 text-sm font-semibold hover:text-[#FFD84D] transition">
+                    <span className="w-6 h-6 rounded-md bg-[#3287D6]/25 text-[#8AB6E2] flex items-center justify-center text-xs">B</span>
+                    Business Loans <span className="num">₹5 L → ₹500 Cr</span> · WC · TL · CC/OD · LAP
+                  </Link>
+                  <span className="text-white/25">•</span>
+                  <Link to="/product/home-loan" className="inline-flex items-center gap-2 text-sm font-semibold hover:text-[#FFD84D] transition">
+                    <span className="w-6 h-6 rounded-md bg-[#FFD84D]/20 text-[#FFD84D] flex items-center justify-center text-xs">🏠</span>
+                    Home Loan @ <span className="num text-[#FFD84D]">8.35%</span> · Balance transfer welcomed
+                  </Link>
+                  <span className="text-white/25">•</span>
+                  <Link to="/banks" className="inline-flex items-center gap-2 text-sm font-semibold hover:text-[#FFD84D] transition">
+                    <span className="w-6 h-6 rounded-md bg-white/15 text-white flex items-center justify-center text-xs">🏦</span>
+                    120+ banks &amp; NBFCs on-board <span className="text-white/50">— view all →</span>
+                  </Link>
+                  <span className="text-white/25">•</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* ==================================================================== */}
       {/* HERO BANNER — CorpZo brand w/ Venturaz shapes + Urban Money cues       */}
@@ -422,10 +466,102 @@ export default function LandingPage() {
           </div>
 
           {/* +more chip footer */}
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-[#0B1F3A]/55">
+          <div className="mt-6 flex items-center justify-center gap-3 text-xs text-[#0B1F3A]/55 flex-wrap">
             <span className="inline-flex items-center gap-1.5 bg-[#0B1F3A]/5 border border-[#0B1F3A]/10 px-3 py-1.5 rounded-full font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-[#FF6B4E]"/> + 60 more partners onboarding this quarter
             </span>
+            <Link to="/banks"
+                  className="inline-flex items-center gap-1.5 bg-[#0B1F3A] hover:bg-[#081733] text-white px-4 py-2 rounded-full font-semibold transition"
+                  data-testid="view-all-banks-cta">
+              View all {data?.total || 80}+ banks &amp; NBFCs <ArrowRight size={14}/>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* BIG-NUMBER TICKER STATS — animated large numbers                      */}
+      {/* ==================================================================== */}
+      <section className="relative bg-gradient-to-r from-[#0B1F3A] via-[#132D5C] to-[#0B1F3A] text-white py-16 overflow-hidden" data-testid="big-stats-strip">
+        <div className="absolute -left-40 -top-24 w-96 h-96 bg-[#FFD84D]/10 blur-3xl rounded-full"/>
+        <div className="absolute -right-40 -bottom-24 w-96 h-96 bg-[#FF6B4E]/10 blur-3xl rounded-full"/>
+        <div className="max-w-7xl mx-auto px-6 relative">
+          <div className="text-center mb-10">
+            <div className="text-[10.5px] uppercase tracking-widest text-[#FFD84D] font-bold">By the numbers</div>
+            <h2 className="font-display text-3xl sm:text-4xl font-bold mt-1">Numbers that borrowers &amp; lenders trust.</h2>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-5">
+            <BigStat testid="bs-lenders"       n={`${lenderCount}+`}   unit="lender partners"   c="#FFD84D"/>
+            <BigStat testid="bs-disbursed"     n="₹2,500Cr" unit="disbursed to date" c="#FF6B4E"/>
+            <BigStat testid="bs-customers"     n="50,000+" unit="happy borrowers"   c="#4C9EEB"/>
+            <BigStat testid="bs-partners"      n="100k+"   unit="channel partners"  c="#22C55E"/>
+            <BigStat testid="bs-products"      n="15"      unit="debt products"     c="#FF9F5A"/>
+          </div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link to="/banks" className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-white text-[#0B1F3A] font-bold hover:bg-[#FFD84D] transition" data-testid="stats-view-banks">
+              <Landmark size={16}/>Explore all banks
+            </Link>
+            <Link to="/become-partner" className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-[#FF6B4E] hover:bg-[#E85A3D] text-white font-bold transition" data-testid="stats-become-partner">
+              <Handshake size={16}/>Become our partner
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ==================================================================== */}
+      {/* CHANNEL PARTNERS — 100,000+ advisors band                             */}
+      {/* ==================================================================== */}
+      <section className="bg-gradient-to-br from-[#FFF6EE] via-[#FDECE5] to-[#FFE7D8] py-20 relative overflow-hidden" data-testid="partner-recruit-section">
+        <div className="absolute -left-20 top-10 w-72 h-72 rounded-full bg-[#FF6B4E]/15 blur-3xl"/>
+        <div className="absolute -right-20 bottom-10 w-72 h-72 rounded-full bg-[#FFD84D]/20 blur-3xl"/>
+        <div className="max-w-7xl mx-auto px-6 relative grid lg:grid-cols-2 gap-10 items-center">
+          <div>
+            <div className="text-[10.5px] uppercase tracking-widest text-[#FF6B4E] font-bold">For DSAs &amp; consultants</div>
+            <h2 className="font-display text-4xl sm:text-5xl font-bold text-[#0B1F3A] mt-2 leading-[1.05]">
+              We power <span className="text-[#FF6B4E]">100,000+</span><br/>debt advisors across India.
+            </h2>
+            <p className="text-[#0B1F3A]/75 mt-4 max-w-xl">
+              Turn your relationships into revenue. Refer files to CorpZo and earn best-in-market payouts on every sanctioned deal. Access 120+ lenders through one login, get real-time file status, and get paid every month on the dot.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3 max-w-lg">
+              {[
+                {t:"Payouts as high as 2.5%",  s:"Weekly reconciliation, monthly bank transfer"},
+                {t:"Full pipeline visibility", s:"Track every lead → sanction → disbursal in one dashboard"},
+                {t:"Dedicated relationship manager", s:"Onboarding, training, sanction help — end to end"},
+                {t:"No cost to join",          s:"Free onboarding · digital KYC · agreement in minutes"},
+              ].map((p, i) => (
+                <div key={i} className="bg-white/70 backdrop-blur border border-white/60 rounded-xl p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-[#22C55E]/15 text-[#0F9F5F] flex items-center justify-center"><CheckCircle2 size={14}/></div>
+                    <div className="font-display font-bold text-sm text-[#0B1F3A]">{p.t}</div>
+                  </div>
+                  <div className="text-[11.5px] text-[#0B1F3A]/70 mt-1">{p.s}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link to="/become-partner" className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-[#0B1F3A] hover:bg-[#081733] text-white font-bold" data-testid="become-partner-cta">
+                Become our partner<ArrowRight size={16}/>
+              </Link>
+              <Link to="/become-partner#calculator" className="inline-flex items-center gap-2 h-12 px-6 rounded-full bg-white/70 hover:bg-white border border-[#0B1F3A]/15 text-[#0B1F3A] font-semibold">
+                Earnings calculator
+              </Link>
+            </div>
+          </div>
+          <div className="relative">
+            <div className="grid grid-cols-3 gap-2.5">
+              {["DEL","MUM","BLR","CHE","HYD","AMD","PUN","JAI","LKO","IND","KOL","GHA"].map((c, i) => (
+                <div key={c} className={`h-16 rounded-xl flex flex-col items-center justify-center border ${i % 3 === 0 ? "bg-[#0B1F3A] text-white border-[#0B1F3A]" : "bg-white border-white/80 text-[#0B1F3A]"} shadow-sm`}>
+                  <div className="font-display font-bold text-sm">{c}</div>
+                  <div className={`text-[10px] ${i%3===0?"text-white/70":"text-[#0B1F3A]/60"}`}>{200+i*47} advisors</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex justify-center">
+              <div className="bg-white shadow-xl rounded-full px-4 py-2 text-xs font-semibold text-[#0B1F3A] flex items-center gap-2 border border-[#FF6B4E]/30">
+                <Users size={14} className="text-[#FF6B4E]"/>Active in 380+ cities
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -532,6 +668,15 @@ export default function LandingPage() {
           </Button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function BigStat({ n, unit, c, testid }) {
+  return (
+    <div className="text-center" data-testid={testid}>
+      <div className="font-display text-4xl sm:text-5xl lg:text-[52px] font-bold num leading-none" style={{ color: c }}>{n}</div>
+      <div className="text-[11px] uppercase tracking-widest text-white/60 mt-2 font-semibold">{unit}</div>
     </div>
   );
 }

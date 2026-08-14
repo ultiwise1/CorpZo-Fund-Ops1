@@ -15,7 +15,7 @@ from auth import fetch_session_data, set_session_cookie, clear_session_cookie, g
 from storage import init_storage, put_object, get_object, APP_NAME
 from uids import gen_uid
 from seed import seed_demo, seed_supplemental
-from notify import notify
+from notify import notify, send_email
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -203,6 +203,98 @@ def sanitize_partner_case(case: dict) -> dict:
     """Strip confidential credit notes for partner viewers."""
     hide = {"credit_owner", "expected_revenue", "actual_revenue"}
     return {k: v for k, v in case.items() if k not in hide}
+
+
+# ============== PERMISSION SYSTEM (per-user overrides on top of role RBAC) ==============
+PERMISSION_KEYS = {
+    "release_commissions":   "Release monthly CP commission payout batches",
+    "mark_payout_paid":      "Mark payout batches as PAID (closes CP + incentive items)",
+    "create_partner":        "Create a new channel partner",
+    "edit_partner_target":   "Edit a channel partner's monthly disbursement target",
+    "publish_cam_template":  "Publish and delete shared CAM templates",
+    "manage_users":          "Manage users, roles, and per-user permissions",
+}
+
+DEFAULT_ROLE_PERMISSIONS = {
+    "super_admin":     set(PERMISSION_KEYS.keys()),
+    "business_head":   {"release_commissions", "mark_payout_paid", "create_partner", "edit_partner_target", "publish_cam_template"},
+    "finance":         {"release_commissions", "mark_payout_paid"},
+    "channel_manager": {"create_partner", "edit_partner_target"},
+    "credit_head":     {"publish_cam_template"},
+    "credit_analyst":  {"publish_cam_template"},
+}
+
+
+def effective_permissions(user: dict) -> set:
+    role = user.get("role", "")
+    base = set(DEFAULT_ROLE_PERMISSIONS.get(role, set()))
+    grants = set(user.get("permissions_grants") or [])
+    revokes = set(user.get("permissions_revokes") or [])
+    return (base | grants) - revokes
+
+
+def has_permission(user: dict, key: str) -> bool:
+    return key in effective_permissions(user)
+
+
+def require_permission(user: dict, key: str):
+    if not has_permission(user, key):
+        raise HTTPException(403, f"Missing permission: {key}")
+
+
+@api.get("/permissions/keys")
+async def list_permission_keys(request: Request):
+    await require_user(request)
+    return [{"key": k, "label": v} for k, v in PERMISSION_KEYS.items()]
+
+
+@api.get("/me/permissions")
+async def my_permissions(request: Request):
+    user = await require_user(request)
+    return {
+        "role": user.get("role"),
+        "permissions": sorted(effective_permissions(user)),
+        "grants": user.get("permissions_grants") or [],
+        "revokes": user.get("permissions_revokes") or [],
+    }
+
+
+@api.get("/admin/users/{user_id}/permissions")
+async def get_user_permissions(user_id: str, request: Request):
+    actor = await require_user(request)
+    require_permission(actor, "manage_users")
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not u:
+        raise HTTPException(404, "User not found")
+    return {
+        "user_id": u["user_id"], "role": u.get("role"),
+        "permissions": sorted(effective_permissions(u)),
+        "grants": u.get("permissions_grants") or [],
+        "revokes": u.get("permissions_revokes") or [],
+    }
+
+
+@api.put("/admin/users/{user_id}/permissions")
+async def set_user_permissions(user_id: str, request: Request):
+    actor = await require_user(request)
+    require_permission(actor, "manage_users")
+    body = await request.json()
+    grants = [k for k in (body.get("grants") or []) if k in PERMISSION_KEYS]
+    revokes = [k for k in (body.get("revokes") or []) if k in PERMISSION_KEYS]
+    before = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    if not before:
+        raise HTTPException(404, "User not found")
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"permissions_grants": grants, "permissions_revokes": revokes}},
+    )
+    after = await db.users.find_one({"user_id": user_id}, {"_id": 0})
+    await audit(actor, "user", user_id, "permissions_updated", before, after)
+    return {
+        "user_id": user_id, "role": after.get("role"),
+        "permissions": sorted(effective_permissions(after)),
+        "grants": grants, "revokes": revokes,
+    }
 
 
 async def list_collection(coll_name: str, query: dict = None, sort_field: str = "created_at", limit: int = 500):
@@ -1205,6 +1297,8 @@ async def list_cps(request: Request):
 @api.post("/channel-partners")
 async def create_cp(request: Request):
     user = await require_user(request)
+    if not has_permission(user, "create_partner"):
+        raise HTTPException(403, "Missing permission: create_partner")
     body = await request.json()
     uid = await gen_uid(db, "channel_partner")
     code = f"CP-{(body.get('city') or 'IND')[:3].upper()}-{uid.split('-')[-1]}"
@@ -1296,7 +1390,9 @@ async def list_audit(request: Request, entity_type: Optional[str] = None, entity
 # ============== USERS / ROLES ADMIN ==============
 @api.get("/users")
 async def list_users(request: Request):
-    await require_user(request)
+    user = await require_user(request)
+    if not has_permission(user, "manage_users"):
+        raise HTTPException(403, "Missing permission: manage_users")
     users = await db.users.find({}, {"_id": 0}).to_list(500)
     return users
 
@@ -1776,7 +1872,6 @@ async def _process_payout_batch():
     """Package all approved CP commissions + finance-approved incentives into one batch."""
     now = datetime.now(timezone.utc)
     period = now.strftime("%Y-%m")
-    batch_id = f"PO-{period}-{uuid.uuid4().hex[:6]}"
     # eligible items
     cp = await db.cp_commissions.find(
         {"status": {"$in": ["approved", "accrued"]},
@@ -1787,7 +1882,8 @@ async def _process_payout_batch():
          "batch_id": {"$exists": False}}, {"_id": 0}
     ).to_list(1000)
     if not cp and not inc:
-        return {"batch_id": batch_id, "period": period, "cp_count": 0, "incentive_count": 0, "total_amount": 0}
+        return {"batch_id": None, "period": period, "cp_count": 0, "incentive_count": 0, "total_amount": 0}
+    batch_id = f"PO-{period}-{uuid.uuid4().hex[:6]}"
 
     cp_total = sum(x.get("payable_amount", 0) for x in cp)
     inc_total = sum((x.get("override_amount") or x.get("calculated_amount") or 0) for x in inc)
@@ -2241,8 +2337,10 @@ async def cron_payout_batch(request: Request):
 @api.get("/payouts")
 async def list_payouts(request: Request):
     user = await require_user(request)
-    if user["role"] not in ("super_admin", "business_head", "finance"):
-        raise HTTPException(403, "Finance only")
+    payout_perms = {"release_commissions", "mark_payout_paid"}
+    if user["role"] not in ("super_admin", "business_head", "finance") \
+       and not (effective_permissions(user) & payout_perms):
+        raise HTTPException(403, "Missing permission: release_commissions / mark_payout_paid")
     rows = await db.payout_batches.find({}, {"_id": 0, "csv": 0}).sort("created_at", -1).to_list(50)
     return rows
 
@@ -2250,8 +2348,8 @@ async def list_payouts(request: Request):
 @api.post("/payouts/run-now")
 async def run_payout_now(request: Request):
     user = await require_user(request)
-    if user["role"] not in ("super_admin", "business_head", "finance"):
-        raise HTTPException(403, "Finance only")
+    if not has_permission(user, "release_commissions"):
+        raise HTTPException(403, "Missing permission: release_commissions")
     result = await _process_payout_batch()
     await audit(user, "payout", result.get("batch_id", "-"), "run_now", None, {"period": result.get("period"), "total": result.get("total_amount")})
     return result
@@ -2260,8 +2358,10 @@ async def run_payout_now(request: Request):
 @api.get("/payouts/{batch_id}/csv")
 async def download_payout_csv(batch_id: str, request: Request):
     user = await require_user(request)
-    if user["role"] not in ("super_admin", "business_head", "finance"):
-        raise HTTPException(403, "Finance only")
+    payout_perms = {"release_commissions", "mark_payout_paid"}
+    if user["role"] not in ("super_admin", "business_head", "finance") \
+       and not (effective_permissions(user) & payout_perms):
+        raise HTTPException(403, "Missing permission: release_commissions / mark_payout_paid")
     doc = await db.payout_batches.find_one({"batch_id": batch_id}, {"_id": 0})
     if not doc:
         raise HTTPException(404, "Batch not found")
@@ -2274,8 +2374,8 @@ async def download_payout_csv(batch_id: str, request: Request):
 @api.post("/payouts/{batch_id}/mark-paid")
 async def mark_batch_paid(batch_id: str, request: Request):
     user = await require_user(request)
-    if user["role"] not in ("super_admin", "business_head", "finance"):
-        raise HTTPException(403, "Finance only")
+    if not has_permission(user, "mark_payout_paid"):
+        raise HTTPException(403, "Missing permission: mark_payout_paid")
     before = await db.payout_batches.find_one({"batch_id": batch_id}, {"_id": 0, "csv": 0})
     if not before:
         raise HTTPException(404, "Not found")
@@ -2321,8 +2421,8 @@ async def mark_read(notification_id: str, request: Request):
 @api.patch("/channel-partners/{partner_uid}")
 async def update_channel_partner(partner_uid: str, request: Request):
     user = await require_user(request)
-    if user["role"] not in ("super_admin", "business_head", "channel_manager", "finance"):
-        raise HTTPException(403, "Not allowed")
+    if not has_permission(user, "edit_partner_target"):
+        raise HTTPException(403, "Missing permission: edit_partner_target")
     body = await request.json()
     before = await db.channel_partners.find_one({"partner_uid": partner_uid}, {"_id": 0})
     if not before:
@@ -2343,7 +2443,9 @@ async def update_channel_partner(partner_uid: str, request: Request):
 async def partner_performance(request: Request):
     """Aggregate KPIs, MTD numbers, per-partner rollup and 6-month trend."""
     user = await require_user(request)
-    if user["role"] not in ("super_admin", "business_head", "channel_manager", "finance"):
+    partner_perms = {"release_commissions", "create_partner", "edit_partner_target"}
+    if user.get("role") not in ("super_admin", "business_head", "channel_manager", "finance") \
+       and not (effective_permissions(user) & partner_perms):
         raise HTTPException(403, "Not allowed")
 
     now = datetime.now(timezone.utc)
@@ -2641,6 +2743,249 @@ async def cam_pdf(case_uid: str, request: Request):
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="CAM-{case_uid}.pdf"'},
     )
+
+
+# ============== CAM TEMPLATES ==============
+@api.get("/cam-templates")
+async def list_cam_templates(request: Request, product: Optional[str] = None):
+    await require_user(request)
+    q = {}
+    if product: q["product"] = product
+    rows = await db.cam_templates.find(q, {"_id": 0}).sort("updated_at", -1).limit(200).to_list(200)
+    return rows
+
+
+@api.post("/cam-templates")
+async def create_cam_template(request: Request):
+    user = await require_user(request)
+    require_permission(user, "publish_cam_template")
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    product = (body.get("product") or "other").strip()
+    if not name:
+        raise HTTPException(422, "name required")
+    template_id = f"tpl_{uuid.uuid4().hex[:10]}"
+    # keep only non-PII structural fields
+    snapshot = {
+        "overview": {"industry": (body.get("overview") or {}).get("industry", "")},
+        "financials": body.get("financials", {}),
+        "banking": body.get("banking", {}),
+        "ratios": body.get("ratios", {}),
+        "positives": body.get("positives", []),
+        "concerns": body.get("concerns", []),
+        "flags": [
+            {"level": (x.get("level") or "green"), "title": (x.get("title") or "")}
+            for x in (body.get("flags") or []) if isinstance(x, dict) and x.get("title")
+        ],
+        "recommendation": body.get("recommendation", ""),
+        "analyst_comments": body.get("analyst_comments", ""),
+    }
+    now_iso = datetime.now(timezone.utc).isoformat()
+    doc = {
+        "template_id": template_id, "name": name[:120], "product": product,
+        "snapshot": snapshot, "author_uid": user["user_id"], "author_name": user.get("name", ""),
+        "created_at": now_iso, "updated_at": now_iso,
+    }
+    await db.cam_templates.insert_one(doc)
+    doc.pop("_id", None)
+    await audit(user, "cam_template", template_id, "created", None, {"name": name, "product": product})
+    return doc
+
+
+@api.delete("/cam-templates/{template_id}")
+async def delete_cam_template(template_id: str, request: Request):
+    user = await require_user(request)
+    tpl = await db.cam_templates.find_one({"template_id": template_id}, {"_id": 0})
+    if not tpl:
+        raise HTTPException(404, "Template not found")
+    # Owner or publisher permission required
+    if tpl.get("author_uid") != user["user_id"] and not has_permission(user, "publish_cam_template"):
+        raise HTTPException(403, "Not allowed")
+    await db.cam_templates.delete_one({"template_id": template_id})
+    await audit(user, "cam_template", template_id, "deleted", tpl, None)
+    return {"ok": True}
+
+
+# ============== PUBLIC — LENDERS + PARTNER APPLICATIONS ==============
+PUBLIC_LENDER_DIRECTORY = [
+    # Scheduled commercial banks - Private
+    {"name": "HDFC Bank",              "type": "Private Bank",     "tier": "top"},
+    {"name": "ICICI Bank",             "type": "Private Bank",     "tier": "top"},
+    {"name": "Axis Bank",              "type": "Private Bank",     "tier": "top"},
+    {"name": "Kotak Mahindra Bank",    "type": "Private Bank",     "tier": "top"},
+    {"name": "IndusInd Bank",          "type": "Private Bank",     "tier": "top"},
+    {"name": "Yes Bank",               "type": "Private Bank"},
+    {"name": "IDFC First Bank",        "type": "Private Bank"},
+    {"name": "Federal Bank",           "type": "Private Bank"},
+    {"name": "RBL Bank",               "type": "Private Bank"},
+    {"name": "DCB Bank",               "type": "Private Bank"},
+    {"name": "Karnataka Bank",         "type": "Private Bank"},
+    {"name": "South Indian Bank",      "type": "Private Bank"},
+    {"name": "City Union Bank",        "type": "Private Bank"},
+    {"name": "Karur Vysya Bank",       "type": "Private Bank"},
+    {"name": "Tamilnad Mercantile",    "type": "Private Bank"},
+    {"name": "Bandhan Bank",           "type": "Private Bank"},
+    {"name": "CSB Bank",               "type": "Private Bank"},
+    {"name": "Jammu & Kashmir Bank",   "type": "Private Bank"},
+    # PSU banks
+    {"name": "State Bank of India",    "type": "PSU Bank",         "tier": "top"},
+    {"name": "Punjab National Bank",   "type": "PSU Bank"},
+    {"name": "Bank of Baroda",         "type": "PSU Bank"},
+    {"name": "Union Bank of India",    "type": "PSU Bank"},
+    {"name": "Bank of India",          "type": "PSU Bank"},
+    {"name": "Canara Bank",            "type": "PSU Bank"},
+    {"name": "Indian Bank",            "type": "PSU Bank"},
+    {"name": "Indian Overseas Bank",   "type": "PSU Bank"},
+    {"name": "Central Bank of India",  "type": "PSU Bank"},
+    {"name": "UCO Bank",               "type": "PSU Bank"},
+    {"name": "Bank of Maharashtra",    "type": "PSU Bank"},
+    {"name": "Punjab & Sind Bank",     "type": "PSU Bank"},
+    # Foreign banks
+    {"name": "Standard Chartered",     "type": "Foreign Bank"},
+    {"name": "HSBC India",             "type": "Foreign Bank"},
+    {"name": "DBS Bank India",         "type": "Foreign Bank"},
+    {"name": "Citi India",             "type": "Foreign Bank"},
+    {"name": "Deutsche Bank India",    "type": "Foreign Bank"},
+    {"name": "Barclays India",         "type": "Foreign Bank"},
+    {"name": "MUFG Bank India",        "type": "Foreign Bank"},
+    # Small finance banks
+    {"name": "AU Small Finance Bank",  "type": "Small Finance Bank"},
+    {"name": "Ujjivan SFB",            "type": "Small Finance Bank"},
+    {"name": "Equitas SFB",            "type": "Small Finance Bank"},
+    {"name": "ESAF SFB",               "type": "Small Finance Bank"},
+    {"name": "Suryoday SFB",           "type": "Small Finance Bank"},
+    {"name": "Utkarsh SFB",            "type": "Small Finance Bank"},
+    {"name": "Fincare SFB",            "type": "Small Finance Bank"},
+    {"name": "Jana SFB",               "type": "Small Finance Bank"},
+    {"name": "Capital SFB",            "type": "Small Finance Bank"},
+    {"name": "North East SFB",         "type": "Small Finance Bank"},
+    # Retail NBFCs
+    {"name": "Bajaj Finserv",          "type": "NBFC",             "tier": "top"},
+    {"name": "Tata Capital",           "type": "NBFC",             "tier": "top"},
+    {"name": "Aditya Birla Capital",   "type": "NBFC"},
+    {"name": "Piramal Capital",        "type": "NBFC"},
+    {"name": "L&T Finance",            "type": "NBFC"},
+    {"name": "Poonawalla Fincorp",     "type": "NBFC"},
+    {"name": "Hero FinCorp",           "type": "NBFC"},
+    {"name": "Cholamandalam",          "type": "NBFC"},
+    {"name": "Mahindra Finance",       "type": "NBFC"},
+    {"name": "Shriram Finance",        "type": "NBFC"},
+    {"name": "Muthoot Finance",        "type": "NBFC"},
+    {"name": "Manappuram Finance",     "type": "NBFC"},
+    {"name": "Fullerton India",        "type": "NBFC"},
+    {"name": "IIFL Finance",           "type": "NBFC"},
+    {"name": "Edelweiss",              "type": "NBFC"},
+    {"name": "JM Financial",           "type": "NBFC"},
+    {"name": "Northern Arc",           "type": "NBFC"},
+    {"name": "Vivriti Capital",        "type": "NBFC"},
+    {"name": "U GRO Capital",          "type": "NBFC"},
+    {"name": "Lendingkart",            "type": "NBFC"},
+    {"name": "FlexiLoans",             "type": "NBFC"},
+    {"name": "Indifi",                 "type": "NBFC"},
+    {"name": "NeoGrowth",              "type": "NBFC"},
+    {"name": "InCred",                 "type": "NBFC"},
+    {"name": "Clix Capital",           "type": "NBFC"},
+    {"name": "DMI Finance",            "type": "NBFC"},
+    {"name": "Godrej Capital",         "type": "NBFC"},
+    {"name": "SMFG India Credit",      "type": "NBFC"},
+    {"name": "Ambit Finvest",          "type": "NBFC"},
+    {"name": "OxyzoFin",               "type": "NBFC"},
+    {"name": "Kinara Capital",         "type": "NBFC"},
+    {"name": "Ugro Business",          "type": "NBFC"},
+    {"name": "Aye Finance",            "type": "NBFC"},
+    {"name": "Arth Digital",           "type": "NBFC"},
+    {"name": "Protium Finance",        "type": "NBFC"},
+    {"name": "Growth Source",          "type": "NBFC"},
+    {"name": "Krazybee",               "type": "NBFC"},
+    {"name": "Whizdm (KreditBee)",     "type": "NBFC"},
+    {"name": "MoneyView",              "type": "NBFC"},
+    {"name": "Prefr (Bigul)",          "type": "NBFC"},
+    # Housing finance
+    {"name": "HDFC Ltd (Housing)",     "type": "Housing Finance"},
+    {"name": "LIC Housing Finance",    "type": "Housing Finance"},
+    {"name": "PNB Housing",            "type": "Housing Finance"},
+    {"name": "Bajaj Housing",          "type": "Housing Finance"},
+    {"name": "Aavas Financiers",       "type": "Housing Finance"},
+    {"name": "Aptus Value Housing",    "type": "Housing Finance"},
+    {"name": "Home First Finance",     "type": "Housing Finance"},
+    {"name": "Repco Home Finance",     "type": "Housing Finance"},
+    {"name": "IIFL Home Finance",      "type": "Housing Finance"},
+    {"name": "India Shelter",          "type": "Housing Finance"},
+    {"name": "Motilal Oswal HF",       "type": "Housing Finance"},
+    # Education / specialty
+    {"name": "Avanse",                 "type": "Specialty NBFC"},
+    {"name": "Auxilo",                 "type": "Specialty NBFC"},
+    {"name": "HDFC Credila",           "type": "Specialty NBFC"},
+    {"name": "InCred Education",       "type": "Specialty NBFC"},
+    {"name": "MPower Financing",       "type": "Specialty NBFC"},
+    {"name": "Prodigy Finance",        "type": "Specialty NBFC"},
+    # Private credit / AIFs (institutional)
+    {"name": "Kotak Investment",       "type": "Private Credit"},
+    {"name": "ICICI Prudential AIF",   "type": "Private Credit"},
+    {"name": "Nomura India Credit",    "type": "Private Credit"},
+    {"name": "Neo Wealth Credit",      "type": "Private Credit"},
+    {"name": "Motilal Oswal Alt",      "type": "Private Credit"},
+    {"name": "Edelweiss Alt Credit",   "type": "Private Credit"},
+    {"name": "360 ONE Credit",         "type": "Private Credit"},
+    {"name": "InCred Alternatives",    "type": "Private Credit"},
+    {"name": "Nippon India AIF",       "type": "Private Credit"},
+    {"name": "Multiples Alternate",    "type": "Private Credit"},
+]
+
+
+@api.get("/public/lenders")
+async def public_lenders():
+    """Full lender directory for the public /banks page."""
+    by_type: Dict[str, list] = {}
+    for l in PUBLIC_LENDER_DIRECTORY:
+        by_type.setdefault(l["type"], []).append(l["name"])
+    return {
+        "total": len(PUBLIC_LENDER_DIRECTORY),
+        "by_type": [{"type": k, "count": len(v), "names": v} for k, v in by_type.items()],
+        "all": PUBLIC_LENDER_DIRECTORY,
+    }
+
+
+@api.post("/public/become-partner")
+async def public_become_partner(request: Request):
+    """Public form: aspiring channel partner submits interest. Stored as a lead + partner_application."""
+    body = await request.json()
+    name = (body.get("name") or "").strip()
+    mobile = (body.get("mobile") or "").strip()
+    email = (body.get("email") or "").strip()
+    if not name or not mobile:
+        raise HTTPException(422, "name and mobile required")
+
+    now = datetime.now(timezone.utc)
+    app_id = f"PA-{now.strftime('%Y%m')}-{uuid.uuid4().hex[:6].upper()}"
+    doc = {
+        "application_id": app_id,
+        "name": name, "mobile": mobile, "email": email,
+        "city": (body.get("city") or "").strip(),
+        "state": (body.get("state") or "").strip(),
+        "current_business": (body.get("current_business") or "").strip(),
+        "expected_volume": body.get("expected_volume", ""),
+        "products": body.get("products", []),
+        "message": (body.get("message") or "").strip()[:1000],
+        "source": "become_partner_page",
+        "status": "new",
+        "created_at": now.isoformat(),
+    }
+    await db.partner_applications.insert_one(doc)
+    doc.pop("_id", None)
+    # Notify channel_manager team (best-effort)
+    try:
+        cms = await db.users.find({"role": "channel_manager"}, {"_id": 0, "email": 1, "name": 1}).to_list(20)
+        for cm in cms:
+            if cm.get("email"):
+                await send_email(cm["email"],
+                                 f"New partner interest: {name}",
+                                 f"<p><b>{name}</b> · {mobile} · {email or '—'}</p>"
+                                 f"<p>City {doc['city']} · Products {', '.join(doc['products']) or '—'}</p>"
+                                 f"<pre>{doc['message']}</pre>")
+    except Exception:
+        pass
+    return doc
 
 
 app.include_router(api)

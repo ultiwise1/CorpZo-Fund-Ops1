@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, API_BASE } from "@/lib/api";
 import { inr, humanize, pillClass, fmtDateTime } from "@/lib/format";
+import { usePermissions } from "@/lib/perms";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Download, Play, CheckCircle2 } from "lucide-react";
@@ -8,12 +10,38 @@ import { Download, Play, CheckCircle2 } from "lucide-react";
 export default function Payouts() {
   const [rows, setRows] = useState([]);
   const [running, setRunning] = useState(false);
-  const load = () => api.get("/payouts").then(r => setRows(r.data)).catch(()=>toast.error("Finance access only"));
+  const location = useLocation();
+  const nav = useNavigate();
+  const perms = usePermissions();
+  const highlightBatch = new URLSearchParams(location.search).get("batch");
+  const [loadError, setLoadError] = useState(null);
+  const load = () => {
+    setLoadError(null);
+    return api.get("/payouts")
+      .then(r => setRows(r.data))
+      .catch(e => {
+        const detail = e.response?.data?.detail || e.message || "Failed to load payouts";
+        if (e.response?.status === 403) setLoadError("You don't have permission to view payout batches.");
+        else setLoadError(detail);
+      });
+  };
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (!highlightBatch) return;
+    const el = document.querySelector(`[data-testid="batch-row-${highlightBatch}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightBatch, rows]);
   const runNow = async () => {
     setRunning(true);
-    try { const { data } = await api.post("/payouts/run-now"); toast.success(`Batch ${data.batch_id} ready — ₹${(data.total_amount||0).toLocaleString('en-IN')}`); load(); }
-    catch (e) { toast.error(e.response?.data?.detail || "Run failed"); }
+    try {
+      const { data } = await api.post("/payouts/run-now");
+      if (!data.batch_id) {
+        toast.info("No eligible commissions to batch this period.");
+      } else {
+        toast.success(`Batch ${data.batch_id} ready — ₹${(data.total_amount||0).toLocaleString('en-IN')}`);
+      }
+      load();
+    } catch (e) { toast.error(e.response?.data?.detail || "Run failed"); }
     finally { setRunning(false); }
   };
   const markPaid = async (b) => {
@@ -31,9 +59,11 @@ export default function Payouts() {
           <h1 className="font-display text-2xl font-semibold">Monthly Payouts</h1>
           <p className="text-sm text-slate-500">Package every approved CP commission and employee incentive into a single Finance-ready batch (auto every month · manual on demand).</p>
         </div>
-        <Button className="bg-orange-600 hover:bg-orange-700" disabled={running} onClick={runNow} data-testid="run-payout-btn">
-          <Play size={14} className="mr-1"/>{running ? "Running…" : "Run payout batch now"}
-        </Button>
+        {perms.has("release_commissions") && (
+          <Button className="bg-orange-600 hover:bg-orange-700" disabled={running} onClick={runNow} data-testid="run-payout-btn">
+            <Play size={14} className="mr-1"/>{running ? "Running…" : "Run payout batch now"}
+          </Button>
+        )}
       </div>
       <div className="grid grid-cols-3 gap-3">
         <Stat label="Batches" v={rows.length}/>
@@ -45,7 +75,8 @@ export default function Payouts() {
           <thead><tr><th>Batch</th><th>Period</th><th className="num-cell">CP items</th><th className="num-cell">Incentives</th><th className="num-cell">CP Total</th><th className="num-cell">Incentive Total</th><th className="num-cell">Grand Total</th><th>Status</th><th>Created</th><th></th></tr></thead>
           <tbody>
             {rows.map(b => (
-              <tr key={b.batch_id}>
+              <tr key={b.batch_id} data-testid={`batch-row-${b.batch_id}`}
+                  className={highlightBatch === b.batch_id ? "bg-amber-50 ring-2 ring-amber-300" : ""}>
                 <td className="mono text-xs">{b.batch_id}</td>
                 <td className="mono text-xs">{b.period}</td>
                 <td className="num-cell">{b.cp_count}</td>
@@ -57,7 +88,7 @@ export default function Payouts() {
                 <td className="text-xs">{fmtDateTime(b.created_at)}</td>
                 <td className="flex gap-2">
                   <a className="inline-flex items-center gap-1 text-xs text-slate-700 hover:text-orange-600" href={`${API_BASE}/payouts/${b.batch_id}/csv`} target="_blank" rel="noreferrer" data-testid={`download-csv-${b.batch_id}`}><Download size={13}/>CSV</a>
-                  {b.status !== "paid" && <Button size="sm" variant="outline" onClick={()=>markPaid(b)} data-testid={`markpaid-${b.batch_id}`}><CheckCircle2 size={13} className="mr-1"/>Mark paid</Button>}
+                  {b.status !== "paid" && perms.has("mark_payout_paid") && <Button size="sm" variant="outline" onClick={()=>markPaid(b)} data-testid={`markpaid-${b.batch_id}`}><CheckCircle2 size={13} className="mr-1"/>Mark paid</Button>}
                 </td>
               </tr>
             ))}

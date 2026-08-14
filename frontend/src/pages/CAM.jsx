@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, API_BASE } from "@/lib/api";
 import { humanize, inr } from "@/lib/format";
+import { usePermissions } from "@/lib/perms";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { FileText, ShieldAlert, CheckCircle2, AlertTriangle, Download, Sparkles, Plus } from "lucide-react";
+import { FileText, ShieldAlert, CheckCircle2, AlertTriangle, Download, Sparkles, Plus, BookOpen, Save, Trash2 } from "lucide-react";
 
 const FLAG_TONES = {
   green: "bg-emerald-50 border-emerald-200 text-emerald-800",
@@ -110,6 +112,61 @@ export default function CAM({ caseData, onSaved }) {
     recommendation: "",
   });
   const [flagForm, setFlagForm] = useState({ level: "green", title: "" });
+  const [templates, setTemplates] = useState([]);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [saveTplOpen, setSaveTplOpen] = useState(false);
+  const [saveTplName, setSaveTplName] = useState("");
+  const perms = usePermissions();
+
+  const loadTemplates = () => api.get(`/cam-templates?product=${encodeURIComponent(c.product || "")}`)
+    .then(r => setTemplates(r.data))
+    .catch(() => {});
+
+  useEffect(() => { loadTemplates(); }, [c.product]);
+
+  const applyTemplate = (tpl) => {
+    const s = tpl.snapshot || {};
+    setF(prev => ({
+      ...prev,
+      overview: { ...prev.overview, industry: prev.overview.industry || (s.overview?.industry || "") },
+      financials: s.financials && Object.keys(s.financials).length ? { ...prev.financials, ...s.financials } : prev.financials,
+      banking: s.banking && Object.keys(s.banking).length ? { ...prev.banking, ...s.banking } : prev.banking,
+      ratios: s.ratios && Object.keys(s.ratios).length ? { ...prev.ratios, ...s.ratios } : prev.ratios,
+      positives: (s.positives || []).join("\n") || prev.positives,
+      concerns: (s.concerns || []).join("\n") || prev.concerns,
+      flags: [...prev.flags, ...(s.flags || []).map((x, i) => ({ level: x.level, title: x.title, id: `tpl_${tpl.template_id}_${i}_${Date.now()}` }))],
+      recommendation: s.recommendation || prev.recommendation,
+      analyst_comments: s.analyst_comments ? (prev.analyst_comments ? prev.analyst_comments + "\n\n" + s.analyst_comments : s.analyst_comments) : prev.analyst_comments,
+    }));
+    setTemplatePickerOpen(false);
+    toast.success(`Applied "${tpl.name}"`);
+  };
+
+  const saveAsTemplate = async () => {
+    const name = (saveTplName || "").trim();
+    if (!name) { toast.error("Give the template a name"); return; }
+    try {
+      await api.post("/cam-templates", {
+        name, product: c.product || "other",
+        overview: f.overview, financials: f.financials, banking: f.banking, ratios: f.ratios,
+        positives: f.positives.split("\n").map(s => s.trim()).filter(Boolean),
+        concerns: f.concerns.split("\n").map(s => s.trim()).filter(Boolean),
+        flags: f.flags, recommendation: f.recommendation, analyst_comments: f.analyst_comments,
+      });
+      toast.success("Template saved");
+      setSaveTplOpen(false); setSaveTplName("");
+      loadTemplates();
+    } catch (e) { toast.error(e.response?.data?.detail || "Save failed"); }
+  };
+
+  const deleteTemplate = async (tpl) => {
+    if (!window.confirm(`Delete template "${tpl.name}"?`)) return;
+    try {
+      await api.delete(`/cam-templates/${tpl.template_id}`);
+      toast.success("Template deleted");
+      loadTemplates();
+    } catch (e) { toast.error(e.response?.data?.detail || "Delete failed"); }
+  };
 
   useEffect(() => {
     api.get(`/cases/${c.case_uid}`).then(r => {
@@ -183,7 +240,15 @@ export default function CAM({ caseData, onSaved }) {
             <h3 className="font-display font-semibold text-base">Credit Assessment (CAM-Lite)</h3>
             <p className="text-xs text-slate-500">All fields save to a single, versioned credit snapshot. Final recommendation must be attributable.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setTemplatePickerOpen(true)} data-testid="cam-load-template-btn">
+              <BookOpen size={14} className="mr-1"/>Load template ({templates.length})
+            </Button>
+            {perms.has("publish_cam_template") && (
+              <Button variant="outline" size="sm" onClick={() => setSaveTplOpen(true)} data-testid="cam-save-template-btn">
+                <Save size={14} className="mr-1"/>Save as template
+              </Button>
+            )}
             <a href={`${API_BASE}/cases/${c.case_uid}/cam.pdf`} target="_blank" rel="noreferrer"
                data-testid="cam-pdf-btn"
                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-slate-300 text-sm text-slate-700 hover:border-[#FF6B4E] hover:text-[#FF6B4E]">
@@ -359,6 +424,68 @@ export default function CAM({ caseData, onSaved }) {
                     placeholder="Free-form observations, structuring notes, mitigants." data-testid="cam-comments"/>
         </div>
       </Section>
+
+      {/* Template picker dialog */}
+      <Dialog open={templatePickerOpen} onOpenChange={(o) => !o && setTemplatePickerOpen(false)}>
+        <DialogContent className="max-w-lg" data-testid="cam-template-picker">
+          <DialogHeader>
+            <DialogTitle>Load CAM template</DialogTitle>
+            <DialogDescription className="text-xs">
+              Templates for <b>{humanize(c.product || "")}</b>. Applying merges ratios / positives / concerns / flags on top of your current work.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 max-h-[420px] overflow-auto space-y-2">
+            {templates.length === 0 && <div className="text-sm text-slate-500 p-4 text-center">No templates for this product yet.</div>}
+            {templates.map(t => (
+              <div key={t.template_id}
+                   className="flex items-center justify-between border border-slate-200 rounded-md p-3 hover:border-[#FF6B4E]"
+                   data-testid={`cam-template-${t.template_id}`}>
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm text-slate-900 truncate">{t.name}</div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    {humanize(t.product)} · by {t.author_name || t.author_uid}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => applyTemplate(t)}
+                          data-testid={`cam-apply-tpl-${t.template_id}`}>Apply</Button>
+                  {perms.has("publish_cam_template") && (
+                    <button onClick={() => deleteTemplate(t)}
+                            className="text-slate-400 hover:text-red-600"
+                            aria-label="Delete template">
+                      <Trash2 size={14}/>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save-as-template dialog */}
+      <Dialog open={saveTplOpen} onOpenChange={(o) => !o && setSaveTplOpen(false)}>
+        <DialogContent className="max-w-md" data-testid="cam-save-template-dialog">
+          <DialogHeader>
+            <DialogTitle>Save CAM as template</DialogTitle>
+            <DialogDescription className="text-xs">
+              Client-specific data is stripped. Ratios, positives, concerns, flags, recommendation, and analyst comments are stored under <b>{humanize(c.product || "")}</b>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-2 space-y-3">
+            <Label className="text-xs">Template name</Label>
+            <Input value={saveTplName} onChange={e => setSaveTplName(e.target.value)}
+                   placeholder="e.g. Standard Working Capital ≥ ₹5 Cr" data-testid="cam-tpl-name"/>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setSaveTplOpen(false)}>Cancel</Button>
+              <Button className="bg-[#0B1F3A] hover:bg-[#081733]" onClick={saveAsTemplate}
+                      data-testid="cam-tpl-save-btn">
+                <Save size={13} className="mr-1"/>Save template
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -403,3 +530,6 @@ function Snapshot({ label, v, tone }) {
     </div>
   );
 }
+
+/* ============== Template pickers (attached via portals from CAM's Dialog wrappers) ============== */
+export function _cam_ignore() { /* keep for tree-shaker */ }

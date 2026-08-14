@@ -1,0 +1,101 @@
+{
+  "summary": "Iteration 6 (Iteration-10 features) full backend + frontend test. Created /app/backend/tests/test_iter6_permissions.py (27 tests) covering the permission-key registry, per-user grant/revoke overrides, RBAC on payouts/run-now + mark-paid + channel-partner create/patch, CAM templates CRUD/RBAC, and CAM PDF regression. Full suite: 111/111 pytest passing (run twice, no flakes). Playwright covered /channel-partners (KPIs, leaderboard, detail modal + 6-month sparkline, Release commissions -> confirm -> toast -> /payouts?batch=), /payouts?batch=<id> amber-ring highlight, the 3-step partner wizard end-to-end, CAM load/apply/save template dialogs, /admin/permissions manage modal, and permission-gated button hiding. 3 real defects found: phantom batch_id from run-now when nothing is eligible (breaks the one-click release flow on 2nd+ use), permission grants not usable end-to-end because the read endpoints still use hardcoded role checks, and GET /api/users + /admin/permissions page have no authorization gate.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/payouts/run-now",
+        "issue": "When no eligible cp_commissions/incentives remain, server.py:1884 returns an early payload containing a FABRICATED batch_id (PO-2026-08-xxxxxx) that is never inserted into payout_batches. Reproduced: two consecutive calls returned PO-2026-08-b2416a and PO-2026-08-fd75ae while GET /api/payouts still lists only the one real batch PO-2026-08-61e129. Frontend then shows a success toast 'Batch PO-... prepared - Rs.0' and navigates to /payouts?batch=<phantom>, where no row exists so no amber highlight is applied. The toast.info('No eligible commissions to batch.') branch in ChannelPartners.jsx:196 is dead code because data.batch_id is always truthy. Return batch_id: null (or omit it) in the empty branch.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "GET /api/partners/performance, GET /api/payouts, GET /api/payouts/{id}/csv",
+        "issue": "The new permission system only replaced the role checks on the MUTATION endpoints. These read endpoints still hardcode role lists, so an admin-selected user cannot actually use a granted permission. Verified: granted release_commissions+create_partner to a sales_agent -> POST /payouts/run-now = 200, but GET /partners/performance = 403 'Not allowed' (so /channel-partners page never renders and the Release button is unreachable) and GET /payouts = 403 'Finance only' (batch cannot be viewed). Requirement 'ONLY for admin or admin-selected users' is therefore broken for admin-selected users.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "GET /api/users",
+        "issue": "server.py:1391 only calls require_user() - no role/permission gate. Any authenticated principal can dump the full staff directory including emails and roles. Verified 200 with the channel_partner session token (test_session_partner). This is the datasource for the new /admin/permissions page, which itself is not gated either (see frontend issues). Gate with require_permission(user, 'manage_users') or a staff-role check.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Sidebar + App.js route",
+        "issue": "Sidebar.jsx:53 renders the 'Permissions' nav link (nav-permissions) for every user and App.js:146 mounts /admin/permissions with no permission guard. A customer/channel_partner can open the page and read the whole user directory (GET /users is ungated). Only the per-user Manage modal correctly 403s. Gate the link + route on manage_users.",
+        "selector": "[data-testid=\"nav-permissions\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Payouts.jsx",
+        "issue": "run-payout-btn and markpaid-<id> buttons are not permission-gated in the UI, unlike ChannelPartners.jsx which hides its buttons via perms.has(). Backend does enforce 403, so users without release_commissions/mark_payout_paid see enabled buttons that fail with an error toast. Inconsistent UX.",
+        "selector": "[data-testid=\"run-payout-btn\"], [data-testid^=\"markpaid-\"]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Payouts.jsx runNow",
+        "issue": "Same phantom-batch consequence as the backend issue: toast.success(`Batch ${data.batch_id} ready - Rs.0`) fires even when nothing was batched. Should branch on cp_count/incentive_count/total_amount.",
+        "selector": "[data-testid=\"run-payout-btn\"]",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "AdminPermissions.jsx",
+        "issue": "No loading state - the table shows 'No users match.' while GET /users is in flight (captured in screenshot immediately after page load, 0 perm-row-* elements). Add a loading skeleton and distinguish empty-from-loading.",
+        "selector": "[data-testid=\"admin-permissions-page\"]",
+        "priority": "LOW"
+      },
+      {
+        "component": "usePermissions (lib/perms.js) consumers",
+        "issue": "Permission-gated controls pop in 1-2s after first render because the hook starts with permissions: [] while /me/permissions resolves (cam-save-template-btn was absent immediately after the CAM tab rendered, then appeared). Consider a loading/disabled placeholder to avoid layout shift and false 'no permission' impressions.",
+        "selector": "[data-testid=\"cam-save-template-btn\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Release commissions one-click (ChannelPartners -> Payouts)",
+        "issue": "Works only on the first run of a period. Verified click -> window.confirm -> POST /payouts/run-now -> toast -> nav to /payouts?batch=PO-2026-08-ddd4f8, but that batch_id was a phantom so [data-testid=batch-row-PO-2026-08-ddd4f8] never existed and no highlight/scroll happened. With a real id (/payouts?batch=PO-2026-08-61e129) the amber ring works: class 'bg-amber-50 ring-2 ring-amber-300' + scrollIntoView.",
+        "affected_selectors": ["[data-testid=\"release-commissions-btn\"]", "[data-testid^=\"batch-row-\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter6_permissions.py",
+    "/app/backend/tests/setup_qa_agents.js",
+    "/app/backend/tests/setup_qa_sessions.js",
+    "/app/backend/tests/cleanup_iter6.js",
+    "/app/test_reports/pytest/iter6_all.xml",
+    "/app/test_reports/pytest/iter6_results.xml"
+  ],
+  "action_items": [
+    "server.py:1884 - do not return a fabricated batch_id when there is nothing to batch (return batch_id: null / omit), and make ChannelPartners.jsx:192 + Payouts.jsx:24 branch on it so the 'No eligible commissions to batch.' info toast actually fires instead of navigating to a non-existent batch.",
+    "Replace the remaining hardcoded role checks with has_permission on GET /api/partners/performance, GET /api/payouts and GET /api/payouts/{batch_id}/csv, otherwise a user granted release_commissions still cannot reach /channel-partners or /payouts.",
+    "Add authorization to GET /api/users (manage_users or staff-only) - it currently leaks the full user directory to channel_partner/customer sessions.",
+    "Gate the sidebar 'Permissions' link and the /admin/permissions route on the manage_users permission.",
+    "Permission-gate run-payout-btn and markpaid-<id> on the Payouts page for consistency with ChannelPartners.",
+    "Add a loading state to AdminPermissions (currently renders 'No users match.' while loading)."
+  ],
+  "critical_code_review_comments": [
+    "_process_payout_batch() generates batch_id before it knows whether anything is eligible and returns it on the empty path without persisting - any caller that trusts batch_id (both UI call sites) breaks. Generate the id only after the eligibility check.",
+    "Permission enforcement is split across two paradigms: require_permission/has_permission on mutations vs `if user['role'] not in (...)` on reads (payouts list, payouts CSV, partners/performance). This makes grants non-functional and is the root cause of backend issue #2.",
+    "GET /api/users returns the full users collection to any authenticated principal - no role filter, no field projection beyond _id. It is now reachable from a nav link visible to every role.",
+    "ChannelPartners.jsx is 466 lines with the page, PartnerDetail and PartnerWizard in one file; extracting PartnerWizard would keep it under control as more steps are added.",
+    "fetchMyPermissions() caches a module-level promise forever, so a permission change made by an admin is not reflected for the affected user until a full page reload; clearPermissionsCache() is exported but never called after AdminPermissions saves."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter6_permissions.py",
+    "/app/backend/tests/setup_qa_agents.js",
+    "/app/backend/tests/setup_qa_sessions.js",
+    "/app/backend/tests/cleanup_iter6.js"
+  ],
+  "success_rate": {"backend": "100% (111/111 pytest; 3 defects are gaps not covered by asserts on the documented contract - documented above)", "frontend": "88% (release-commissions deep link broken on repeat runs; authorization gating gaps)"},
+  "seed_data_creation": "Recreated test_session_supertoken. Created sales_agent QA users user_test_agent_qa + user_test_agent_{ov,rc,cp,cam,ro} with tokens test_session_agent_{qa,ov,rc,cp,cam,ro} (scripts: tests/setup_qa_sessions.js, tests/setup_qa_agents.js). Seeded CAM template 'LAP standard' (product=lap, tpl_7839d8803e) so CS-2026-000015 (product=lap) has an applicable template. All TEST_ prefixed channel_partners / cam_templates / clients removed via tests/cleanup_iter6.js.",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "Bearer test_session_supertoken (super_admin, user_seed_000). Non-admin: Bearer test_session_agent_ro (sales_agent, no default permissions). Browser: cookie session_token=<token>, domain credit-ops-5.preview.emergentagent.com, secure, sameSite=None.",
+  "context_for_next_testing_agent": "Run `mongosh test_database --file /app/backend/tests/setup_qa_agents.js` before the suite - test_iter6_permissions.py needs the 5 per-class sales_agent sessions (one per class, deliberately isolated because pytest.ini runs -n 4 --dist loadscope and a shared user caused cross-class permission races). Use `python -m pytest tests/ -p xdist -n 4 --dist loadscope` from /app/backend (pytest.ini already sets the xdist args; -p no:xdist fails). Run tests/cleanup_iter6.js afterwards to drop TEST_ partners/templates/clients. VERIFIED WORKING and not worth re-testing unless touched: permissions/keys (6), /me/permissions, PUT/GET admin overrides + 403/404 paths, run-now + mark-paid + channel-partner create/patch RBAC, CAM template CRUD/RBAC + apply-merge in the UI, partner wizard 3 steps + leaderboard refresh, /payouts?batch=<REAL id> amber ring, AdminPermissions manage modal, CAM auto-flag suggestions, cam.pdf. FOCUS NEXT RUN ON: the phantom batch_id fix (click Release commissions twice in a row - the second click must NOT navigate/claim success), permission-gating of GET /partners/performance + GET /payouts (log in as a sales_agent granted release_commissions and confirm the whole flow works), and authorization on GET /api/users + /admin/permissions.",
+  "rca_of_the_issue": "Phantom batch: _process_payout_batch() (server.py:1873) computes `batch_id = f\"PO-{period}-{uuid4hex6}\"` BEFORE querying eligible items, then the `if not cp and not inc:` guard at line 1883 returns that id with zero counts without inserting into payout_batches. Both UI callers treat a truthy batch_id as success - ChannelPartners.jsx:192 navigates to /payouts?batch=<id> and Payouts.jsx:24 toasts 'ready'. Because commissions are stamped with batch_id on the first successful run, every subsequent run in the same period hits the empty branch, so the advertised one-click flow silently fails after the first use. Repro: POST /api/payouts/run-now twice with Bearer test_session_supertoken, then GET /api/payouts - only one persisted batch exists. Mitigation: return {\"batch_id\": None, ...} on the empty path and guard the two frontend call sites on batch_id/total_amount."
+}
